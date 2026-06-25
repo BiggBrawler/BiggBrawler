@@ -1,0 +1,6 @@
+# Block ALL script execution inside the uploads folder.
+# Even if someone bypasses the PHP extension check, files here cannot run.
+php_flag engine off
+Options -ExecCGI
+RemoveHandler .php .php3 .php4 .php5 .php7 .php8 .phtml .pl .py .cgi .sh
+AddType text/plain .php .php3 .php4 .php5 .php7 .php8 .phtml .pl .py .cgi .sh
