@@ -968,8 +968,16 @@ function showInspector(block) {
 // MULTI-SELECT
 // ============================================================
 function toggleMultiSel(block) {
-    if (block.dataset.type === 'section') return; // don't multi-select sections
-    deselectAll();
+    if (block.dataset.type === 'section') return;
+
+    // Absorb the single-selected block into multiSel before toggling the new one
+    if (activeBlock && multiSel.indexOf(activeBlock) < 0) {
+        activeBlock.classList.remove('selected');
+        activeBlock.classList.add('multi-sel');
+        multiSel.push(activeBlock);
+    }
+    activeBlock = null;
+    document.getElementById('inspector').style.display = 'none';
 
     var idx = multiSel.indexOf(block);
     if (idx >= 0) {
