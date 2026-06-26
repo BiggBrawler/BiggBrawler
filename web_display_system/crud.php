@@ -1,5 +1,8 @@
 <?php
+require_once 'auth.php';
 require_once 'db_connect.php';
+requireLogin();   // all roles can access; delete is admin-only below
+$me = currentUser();
 
 // ---- File upload validation ----
 $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
@@ -105,11 +108,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update'])) {
 // DELETE  (POST only – not a GET link, to prevent accidental deletion)
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_delete'])) {
+    if (!isAdmin()) { $message = 'Only admins can delete assets.'; $msgClass = 'error'; goto end_delete; }
     $id = intval($_POST['delete_id'] ?? 0);
     if ($id > 0) {
         $pdo->prepare("DELETE FROM assets WHERE id = ?")->execute([$id]);
         $message = 'Asset deleted.';
     }
+    end_delete:;
 }
 
 // ============================================================
@@ -129,9 +134,15 @@ if (isset($_GET['edit_id'])) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Asset Manager</title>
+    <title>Asset Library — <?= htmlspecialchars(SITE_NAME) ?></title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        nav { background:#1a252f; padding:0 20px; display:flex; align-items:center; gap:18px; height:50px; margin-bottom:24px; }
+        nav .brand { color:#fff; font-weight:bold; font-size:15px; margin-right:auto; }
+        nav a { color:#bdc3c7; text-decoration:none; font-size:13px; padding:6px 10px; border-radius:4px; }
+        nav a:hover, nav a.active { background:#2c3e50; color:#fff; }
+        .role-tag { background: <?= isAdmin() ? '#e74c3c' : '#3498db' ?>; color:#fff; font-size:10px;
+                    font-weight:bold; padding:1px 6px; border-radius:8px; margin-left:4px; }
 
         body { background: #f0f2f5; padding: 24px; color: #333; }
 
@@ -206,8 +217,19 @@ if (isset($_GET['edit_id'])) {
     </style>
 </head>
 <body>
+<nav>
+    <span class="brand"><?= htmlspecialchars(SITE_NAME) ?></span>
+    <a href="builder.php">Builder</a>
+    <a href="crud.php" class="active">Asset Library</a>
+    <?php if (isAdmin()): ?><a href="admin_panel.php">Admin Panel</a><?php endif; ?>
+    <span style="color:#bdc3c7; font-size:13px;">
+        <?= htmlspecialchars($me['username']) ?>
+        <span class="role-tag"><?= isAdmin() ? 'ADMIN' : 'USER' ?></span>
+    </span>
+    <a href="logout.php">Sign Out</a>
+</nav>
 
-<h1>Asset Manager &mdash; Add &amp; Edit Display Content</h1>
+<h1 style="max-width:1040px; margin:0 auto 20px; padding:0 16px;">Asset Library</h1>
 
 <div class="layout">
 

@@ -1,6 +1,15 @@
 # Block ALL script execution inside the uploads folder.
-# Even if someone bypasses the PHP extension check, files here cannot run.
+# Even if a file bypasses PHP validation, it cannot execute here.
 php_flag engine off
 Options -ExecCGI
 RemoveHandler .php .php3 .php4 .php5 .php7 .php8 .phtml .pl .py .cgi .sh
 AddType text/plain .php .php3 .php4 .php5 .php7 .php8 .phtml .pl .py .cgi .sh
+
+# Ensure correct MIME types so browsers can play video and display images inline
+AddType image/jpeg  .jpg .jpeg
+AddType image/png   .png
+AddType image/gif   .gif
+AddType image/webp  .webp
+AddType video/mp4   .mp4
+AddType video/webm  .webm
+AddType video/ogg   .ogv .ogg

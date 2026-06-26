@@ -1,50 +1,61 @@
 <?php
+require_once 'auth.php';
 require_once 'db_connect.php';
+requireLogin();
+
 header('Content-Type: application/json');
 
-// ---- Allowed image types for upload ----
-define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
-define('ALLOWED_MIME_TYPES',  ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-define('MAX_UPLOAD_BYTES',    10 * 1024 * 1024); // 10 MB
+$action  = $_GET['action'] ?? $_POST['action'] ?? '';
+$isAdmin = isAdmin();
 
-function validateImageFile(array $file): array {
+// ---- Upload whitelists ----
+define('IMG_EXT',  ['jpg','jpeg','png','gif','webp']);
+define('IMG_MIME', ['image/jpeg','image/png','image/gif','image/webp']);
+define('VID_EXT',  ['mp4','webm','ogv','ogg']);
+define('VID_MIME', ['video/mp4','video/webm','video/ogg']);
+define('MAX_BYTES', 50 * 1024 * 1024); // 50 MB
+
+function validateFile(array $file, array $allowExt, array $allowMime): array {
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        return ['ok' => false, 'msg' => 'Upload error code ' . $file['error']];
+        return ['ok' => false, 'msg' => 'Upload error (code ' . $file['error'] . ')'];
     }
-    if ($file['size'] > MAX_UPLOAD_BYTES) {
-        return ['ok' => false, 'msg' => 'File exceeds 10 MB limit'];
+    if ($file['size'] > MAX_BYTES) {
+        return ['ok' => false, 'msg' => 'File exceeds 50 MB limit.'];
     }
-    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (!in_array($ext, ALLOWED_EXTENSIONS, true)) {
-        return ['ok' => false, 'msg' => 'File type not allowed. Use JPG, PNG, GIF, or WEBP.'];
+    $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowExt, true)) {
+        return ['ok' => false, 'msg' => 'File extension not allowed.'];
     }
     $mime = mime_content_type($file['tmp_name']);
-    if (!in_array($mime, ALLOWED_MIME_TYPES, true)) {
-        return ['ok' => false, 'msg' => 'File MIME type rejected.'];
+    if (!in_array($mime, $allowMime, true)) {
+        return ['ok' => false, 'msg' => 'File type rejected.'];
     }
     return ['ok' => true, 'ext' => $ext];
 }
 
-function ensureUploadsDir(): void {
-    if (!is_dir('uploads')) {
-        mkdir('uploads', 0755, true);
-    }
+function ensureUploads(): void {
+    if (!is_dir('uploads')) mkdir('uploads', 0755, true);
 }
 
 // ============================================================
 // GET: get_layout
 // ============================================================
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_layout') {
-    $settings  = $pdo->query("SELECT * FROM canvas_settings WHERE id = 1")->fetch();
-    $elements  = $pdo->query(
+    $settings = $pdo->query("SELECT * FROM canvas_settings WHERE id = 1")->fetch();
+
+    // All elements; sections first so client can build DOM tree
+    $elements = $pdo->query(
         "SELECT ce.*, a.content AS db_content
          FROM canvas_elements ce
          LEFT JOIN assets a ON ce.asset_id = a.id
-         ORDER BY ce.id ASC"
+         ORDER BY CASE WHEN ce.type='section' THEN 0 ELSE 1 END, ce.sort_order ASC, ce.id ASC"
     )->fetchAll();
-    echo json_encode(['settings' => $settings, 'elements' => $elements]);
+
+    $styleRows = $pdo->query("SELECT * FROM block_styles")->fetchAll();
+    $styles    = [];
+    foreach ($styleRows as $s) $styles[$s['block_type']] = $s;
+
+    echo json_encode(['settings' => $settings, 'elements' => $elements, 'block_styles' => $styles]);
     exit;
 }
 
@@ -58,68 +69,144 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_assets') {
 }
 
 // ============================================================
-// POST: publish  – saves layout to DB
+// POST: upload_file  (images – all roles)
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'upload_file') {
+    if (!isset($_FILES['file'])) { echo json_encode(['status'=>'error','message'=>'No file.']); exit; }
+    $check = validateFile($_FILES['file'], IMG_EXT, IMG_MIME);
+    if (!$check['ok']) { echo json_encode(['status'=>'error','message'=>$check['msg']]); exit; }
+    ensureUploads();
+    $name = 'img_' . uniqid('',true) . '.' . $check['ext'];
+    move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $name);
+    echo json_encode(['status'=>'success','path'=>'uploads/'.$name]);
+    exit;
+}
+
+// ============================================================
+// POST: upload_video  (admin only)
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'upload_video') {
+    if (!$isAdmin) { echo json_encode(['status'=>'error','message'=>'Admins only.']); exit; }
+    if (!isset($_FILES['file'])) { echo json_encode(['status'=>'error','message'=>'No file.']); exit; }
+    $check = validateFile($_FILES['file'], VID_EXT, VID_MIME);
+    if (!$check['ok']) { echo json_encode(['status'=>'error','message'=>$check['msg']]); exit; }
+    ensureUploads();
+    $name = 'vid_' . uniqid('',true) . '.' . $check['ext'];
+    move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $name);
+    echo json_encode(['status'=>'success','path'=>'uploads/'.$name]);
+    exit;
+}
+
+// ============================================================
+// POST: publish
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
-    $data  = json_decode($_POST['layout_data'] ?? '[]', true) ?: [];
+    $data   = json_decode($_POST['layout_data'] ?? '[]', true) ?: [];
     $bgType = $_POST['bg_type'] ?? 'color';
     $bgVal  = $_POST['bg_val']  ?? '#1a1a2e';
 
-    // Handle background image upload
-    if ($bgType === 'image' && isset($_FILES['bg_file'])) {
-        $check = validateImageFile($_FILES['bg_file']);
+    // Background image upload – admin only
+    if ($isAdmin && $bgType === 'image' && isset($_FILES['bg_file'])) {
+        $check = validateFile($_FILES['bg_file'], IMG_EXT, IMG_MIME);
         if ($check['ok']) {
-            ensureUploadsDir();
-            $fileName = 'bg_' . time() . '.' . $check['ext'];
-            if (move_uploaded_file($_FILES['bg_file']['tmp_name'], 'uploads/' . $fileName)) {
-                $bgVal = 'uploads/' . $fileName;
+            ensureUploads();
+            $name = 'bg_' . time() . '.' . $check['ext'];
+            if (move_uploaded_file($_FILES['bg_file']['tmp_name'], 'uploads/' . $name)) {
+                $bgVal = 'uploads/' . $name;
             }
         }
     }
 
     $pdo->beginTransaction();
     try {
-        $pdo->prepare("UPDATE canvas_settings SET bg_type = ?, bg_val = ? WHERE id = 1")
-            ->execute([$bgType, $bgVal]);
+        // Only admin updates canvas background
+        if ($isAdmin) {
+            $pdo->prepare("UPDATE canvas_settings SET bg_type=?, bg_val=? WHERE id=1")
+                ->execute([$bgType, $bgVal]);
+        }
 
+        // Clear children first (self-referential FK), then all elements
+        $pdo->exec("DELETE FROM canvas_elements WHERE section_id IS NOT NULL");
         $pdo->exec("DELETE FROM canvas_elements");
 
+        // Phase 1: insert sections (admin data only) → capture temp_id → real_id map
+        $tempMap = [];
         foreach ($data as $el) {
-            $assetId       = !empty($el['asset_id']) ? intval($el['asset_id']) : null;
-            $manualContent = $el['manual_content'] ?? '';
+            if (($el['type'] ?? '') !== 'section') continue;
+            if (!$isAdmin) continue; // basic users cannot create/publish sections
 
-            // Auto-save new standalone content to assets pool (no duplicates)
-            if (!$assetId && !empty($manualContent) && !empty($el['save_to_db_pool'])) {
-                $dup = $pdo->prepare("SELECT id FROM assets WHERE type = ? AND content = ? LIMIT 1");
-                $dup->execute([$el['type'], $manualContent]);
-                $existing = $dup->fetch();
-                if ($existing) {
-                    $assetId       = $existing['id'];
-                    $manualContent = null;
+            $pdo->prepare(
+                "INSERT INTO canvas_elements
+                 (type, x_pos, y_pos, width, height, section_bg, locked, sort_order)
+                 VALUES ('section', ?, ?, ?, ?, ?, ?, ?)"
+            )->execute([
+                intval($el['x_pos'] ?? 0),
+                intval($el['y_pos'] ?? 0),
+                intval($el['width'] ?? 400),
+                intval($el['height'] ?? 300),
+                $el['section_bg'] ?? null,
+                intval($el['locked'] ?? 0),
+                intval($el['sort_order'] ?? 0),
+            ]);
+            $realId = $pdo->lastInsertId();
+            if (!empty($el['temp_id'])) {
+                $tempMap[$el['temp_id']] = $realId;
+            }
+        }
+
+        // Phase 2: insert non-section elements
+        $order = 0;
+        foreach ($data as $el) {
+            if (($el['type'] ?? '') === 'section') continue;
+
+            $type       = $el['type'] ?? 'text';
+            $subtype    = $el['block_subtype'] ?? 'free';
+            $parentTmp  = $el['parent_temp_id'] ?? null;
+            $sectionId  = $parentTmp ? ($tempMap[$parentTmp] ?? null) : null;
+            $assetId    = !empty($el['asset_id']) ? intval($el['asset_id']) : null;
+            $manual     = $el['manual_content'] ?? '';
+
+            // Auto-save new standalone text/image content to asset pool
+            if (!$assetId && !empty($manual) && !empty($el['save_to_db_pool'])) {
+                $dup = $pdo->prepare("SELECT id FROM assets WHERE type=? AND content=? LIMIT 1");
+                $dup->execute([$type, $manual]);
+                $ex = $dup->fetch();
+                if ($ex) {
+                    $assetId = $ex['id'];
+                    $manual  = null;
                 } else {
-                    $ins = $pdo->prepare("INSERT INTO assets (type, content, label) VALUES (?, ?, ?)");
-                    $preview = substr(strip_tags($manualContent), 0, 20);
-                    $ins->execute([$el['type'], $manualContent, 'Auto-Saved: ' . $preview]);
-                    $assetId       = $pdo->lastInsertId();
-                    $manualContent = null;
+                    $ins = $pdo->prepare("INSERT INTO assets (type,content,label) VALUES (?,?,?)");
+                    $ins->execute([$type, $manual, 'Auto: '.substr(strip_tags($manual),0,20)]);
+                    $assetId = $pdo->lastInsertId();
+                    $manual  = null;
                 }
             }
 
             $pdo->prepare(
                 "INSERT INTO canvas_elements
-                 (type, x_pos, y_pos, width, height, manual_content, asset_id, font_family, font_size, font_color)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                 (section_id, type, block_subtype, x_pos, y_pos, width, height,
+                  manual_content, asset_id,
+                  font_family, font_size, font_color, font_weight, font_style, line_height,
+                  locked, sort_order)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
             )->execute([
-                $el['type'],
-                intval($el['x_pos']),
-                intval($el['y_pos']),
-                intval($el['width']),
-                intval($el['height']),
-                $manualContent ?: null,
+                $sectionId,
+                $type,
+                $subtype,
+                intval($el['x_pos']   ?? 0),
+                intval($el['y_pos']   ?? 0),
+                intval($el['width']   ?? 200),
+                intval($el['height']  ?? 100),
+                $manual ?: null,
                 $assetId,
-                $el['font_family'] ?? 'Arial',
+                $el['font_family']  ?? 'Arial',
                 intval($el['font_size'] ?? 16),
-                $el['font_color'] ?? '#000000',
+                $el['font_color']   ?? '#000000',
+                $el['font_weight']  ?? 'normal',
+                $el['font_style']   ?? 'normal',
+                number_format(floatval($el['line_height'] ?? 1.4), 2),
+                intval($el['locked'] ?? 0),
+                $order++,
             ]);
         }
 
@@ -127,32 +214,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
         echo json_encode(['status' => 'success']);
     } catch (Exception $e) {
         $pdo->rollBack();
-        echo json_encode(['status' => 'error', 'message' => 'Publish failed. Changes were not saved.']);
+        echo json_encode(['status' => 'error', 'message' => 'Publish failed. Nothing was saved.']);
     }
     exit;
 }
 
 // ============================================================
-// POST: upload_file  – direct image upload from builder
+// POST: save_brand_styles  (admin only)
 // ============================================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'upload_file') {
-    if (!isset($_FILES['file'])) {
-        echo json_encode(['status' => 'error', 'message' => 'No file received.']);
-        exit;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_brand_styles') {
+    if (!$isAdmin) { echo json_encode(['status'=>'error','message'=>'Admins only.']); exit; }
+    $data   = json_decode($_POST['styles_data'] ?? '[]', true) ?: [];
+    $allowed = ['section_header','item_title','price','description'];
+    $stmt   = $pdo->prepare(
+        "UPDATE block_styles SET font_family=?, font_size=?, font_color=?, font_weight=?, font_style=?, line_height=? WHERE block_type=?"
+    );
+    foreach ($allowed as $t) {
+        if (!isset($data[$t])) continue;
+        $s = $data[$t];
+        $stmt->execute([
+            $s['font_family'] ?? 'Arial',
+            intval($s['font_size'] ?? 16),
+            $s['font_color']  ?? '#000000',
+            $s['font_weight'] ?? 'normal',
+            $s['font_style']  ?? 'normal',
+            number_format(floatval($s['line_height'] ?? 1.4), 2),
+            $t,
+        ]);
     }
-    $check = validateImageFile($_FILES['file']);
-    if (!$check['ok']) {
-        echo json_encode(['status' => 'error', 'message' => $check['msg']]);
-        exit;
-    }
-    ensureUploadsDir();
-    $fileName = 'asset_' . uniqid('', true) . '.' . $check['ext'];
-    $dest     = 'uploads/' . $fileName;
-    if (move_uploaded_file($_FILES['file']['tmp_name'], $dest)) {
-        echo json_encode(['status' => 'success', 'path' => $dest]);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Could not save file.']);
-    }
+    echo json_encode(['status' => 'success']);
     exit;
 }
 
