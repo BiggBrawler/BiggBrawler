@@ -57,10 +57,16 @@
     // Auto-refresh every 30s so published changes appear without manual reload
     setInterval(loadLayout, 30000);
 
+    var _layoutHash = '';
+
     function loadLayout() {
         fetch('api.php?action=get_layout')
             .then(function(r) { return r.json(); })
             .then(function(data) {
+                var hash = JSON.stringify(data);
+                if (hash === _layoutHash) return; // nothing changed — leave videos running
+                _layoutHash = hash;
+
                 var canvas = document.getElementById('viewer-canvas');
                 canvas.innerHTML = '';
 
@@ -143,6 +149,9 @@
                         if (content) {
                             var src = document.createElement('source');
                             src.src  = content;
+                            var _ext = content.split('.').pop().toLowerCase();
+                            var _mime = {mp4:'video/mp4',webm:'video/webm',ogv:'video/ogg',ogg:'video/ogg'};
+                            if (_mime[_ext]) src.type = _mime[_ext];
                             vid.appendChild(src);
                         }
                         block.appendChild(vid);

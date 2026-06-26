@@ -49,13 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['find_user'])) {
                      . "Reply-To: " . MAIL_FROM . "\r\n"
                      . "X-Mailer: PHP/" . phpversion();
 
-            mail($to, $subject, $body, $headers);
+            $sent = mail($to, $subject, $body, $headers);
 
-            $_SESSION['reset_user_id'] = $user['id'];
-            $_SESSION['reset_step']    = 2;
-            $step    = 2;
-            $message = 'A 6-digit code has been sent to the email on file. Enter it below.';
-            $msgType = 'success';
+            if (!$sent) {
+                $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$user['id']]);
+                $message = 'Could not send the reset email. Please try again later or contact your manager.';
+                $msgType = 'error';
+            } else {
+                $_SESSION['reset_user_id'] = $user['id'];
+                $_SESSION['reset_step']    = 2;
+                $step    = 2;
+                $message = 'A 6-digit code has been sent to the email on file. Enter it below.';
+                $msgType = 'success';
+            }
         }
     }
 }

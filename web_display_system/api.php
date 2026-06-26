@@ -1,11 +1,16 @@
 <?php
 require_once 'auth.php';
 require_once 'db_connect.php';
-requireLogin();
+
+$action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+// get_layout is publicly accessible so viewer.php (kiosk display) can fetch it without a session.
+// All other endpoints require an authenticated session.
+if ($action !== 'get_layout') {
+    requireLogin();
+}
 
 header('Content-Type: application/json');
-
-$action  = $_GET['action'] ?? $_POST['action'] ?? '';
 $isAdmin = isAdmin();
 
 // ---- Upload whitelists ----
@@ -77,7 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'upload_file') {
     if (!$check['ok']) { echo json_encode(['status'=>'error','message'=>$check['msg']]); exit; }
     ensureUploads();
     $name = 'img_' . uniqid('',true) . '.' . $check['ext'];
-    move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $name);
+    if (!move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $name)) {
+        echo json_encode(['status'=>'error','message'=>'Could not save uploaded file.']); exit;
+    }
     echo json_encode(['status'=>'success','path'=>'uploads/'.$name]);
     exit;
 }
@@ -92,7 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'upload_video') {
     if (!$check['ok']) { echo json_encode(['status'=>'error','message'=>$check['msg']]); exit; }
     ensureUploads();
     $name = 'vid_' . uniqid('',true) . '.' . $check['ext'];
-    move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $name);
+    if (!move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $name)) {
+        echo json_encode(['status'=>'error','message'=>'Could not save uploaded file.']); exit;
+    }
     echo json_encode(['status'=>'success','path'=>'uploads/'.$name]);
     exit;
 }

@@ -108,13 +108,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update'])) {
 // DELETE  (POST only – not a GET link, to prevent accidental deletion)
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_delete'])) {
-    if (!isAdmin()) { $message = 'Only admins can delete assets.'; $msgClass = 'error'; goto end_delete; }
-    $id = intval($_POST['delete_id'] ?? 0);
-    if ($id > 0) {
-        $pdo->prepare("DELETE FROM assets WHERE id = ?")->execute([$id]);
-        $message = 'Asset deleted.';
+    if (!isAdmin()) {
+        $message  = 'Only admins can delete assets.';
+        $msgClass = 'error';
+    } else {
+        $id = intval($_POST['delete_id'] ?? 0);
+        if ($id > 0) {
+            $pdo->prepare("DELETE FROM assets WHERE id = ?")->execute([$id]);
+            $message = 'Asset deleted.';
+        }
     }
-    end_delete:;
 }
 
 // ============================================================

@@ -903,7 +903,10 @@ function fmtCmd(evt, cmd) {
         sel.addRange(savedRange);
     }
     document.execCommand(cmd, false, null);
-    if (activeBlock) activeBlock.querySelector('.text-inner').focus();
+    if (activeBlock) {
+        var _ti = activeBlock.querySelector('.text-inner');
+        if (_ti) _ti.focus();
+    }
 }
 
 // ============================================================
@@ -950,7 +953,8 @@ function uploadBlockImage(input) {
         .then(function(r){ return r.json(); })
         .then(function(res) {
             if (res.status==='success') {
-                activeBlock.querySelector('img').src = res.path;
+                var _img = activeBlock.querySelector('img');
+                if (_img) _img.src = res.path;
                 activeBlock.dataset.manualPath = res.path;
                 activeBlock.dataset.assetId    = '';
                 document.getElementById('asset-link').value = '';
@@ -968,6 +972,7 @@ function uploadBlockVideo(input) {
         .then(function(res) {
             if (res.status==='success') {
                 var vid = activeBlock.querySelector('video');
+                if (!vid) { showToast('Video element not found.', true); return; }
                 vid.innerHTML = '';
                 var src = document.createElement('source');
                 src.src = res.path; vid.appendChild(src); vid.load();
@@ -1046,7 +1051,8 @@ function publishCanvas() {
 
         if (!assetId) {
             if (type === 'text') {
-                manual   = block.querySelector('.text-inner').innerHTML;
+                var _inner = block.querySelector('.text-inner');
+                manual   = _inner ? _inner.innerHTML : '';
                 savePool = true;
             } else {
                 manual   = block.dataset.manualPath || (block.querySelector('img,video source') || {}).src || '';
