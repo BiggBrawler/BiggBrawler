@@ -268,6 +268,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <?= htmlspecialchars($me['username']) ?>
         <span class="role-tag"><?= $isAdmin ? 'ADMIN' : 'USER' ?></span>
     </span>
+    <a href="help.php" target="_blank">Help</a>
     <a href="viewer.php" target="_blank">View Display ↗</a>
     <a href="logout.php">Sign Out</a>
 </div>
