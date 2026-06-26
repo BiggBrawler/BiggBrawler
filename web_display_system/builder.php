@@ -679,8 +679,7 @@ function renderSection(el) {
 
     s.addEventListener('mousedown', function(e) {
         if (e.target === s || e.target === lbl) {
-            e.stopPropagation();
-            if (IS_ADMIN) selectBlock(s, e);
+            if (IS_ADMIN) selectBlock(s);
             setTargetSection(s);
         }
     });
@@ -778,11 +777,10 @@ function renderBlock(el, parent) {
 
     block.addEventListener('mousedown', function(e) {
         if (e.target.closest('.text-inner')) return; // let text-inner handle its own focus
-        e.stopPropagation();
         if (e.shiftKey) {
             toggleMultiSel(block);
         } else {
-            selectBlock(block, e);
+            selectBlock(block);
         }
     });
 
@@ -815,8 +813,7 @@ function applyTextStyles(block, el) {
 // ============================================================
 // SELECTION (single)
 // ============================================================
-function selectBlock(block, e) {
-    if (e) e.stopPropagation();
+function selectBlock(block) {
     clearMultiSel();
     deselectAll();
     activeBlock = block;
@@ -1039,10 +1036,9 @@ function clearTargetSection() {
 // ============================================================
 function setupCanvas() {
     document.getElementById('editor-frame').addEventListener('mousedown', function(e) {
-        if (e.target === this || e.target === document.getElementById('builder-canvas')) {
-            if (!e.shiftKey) { deselectAll(); clearMultiSel(); }
-            clearTargetSection();
-        }
+        if (e.target.closest('.editable-block')) return;
+        if (!e.shiftKey) { deselectAll(); clearMultiSel(); }
+        clearTargetSection();
     });
     document.addEventListener('selectionchange', trackSelection);
 }
