@@ -138,13 +138,13 @@
 
     var _layoutHash = '';
     var _carouselTimers = [];
-    var _marqueeRAFs   = [];
+    var _marqueeStops   = [];   // array of cancel functions, one per marquee
 
     function stopAnimations() {
         _carouselTimers.forEach(function(t) { clearInterval(t); });
         _carouselTimers = [];
-        _marqueeRAFs.forEach(function(id) { cancelAnimationFrame(id); });
-        _marqueeRAFs = [];
+        _marqueeStops.forEach(function(cancel) { cancel(); });
+        _marqueeStops = [];
     }
 
     function loadLayout() {
@@ -266,7 +266,7 @@
         var data = {};
         try { data = JSON.parse(content || '{}'); } catch(e) {}
         var slides   = data.slides   || [];
-        var interval = data.interval || 5000;
+        var interval = Math.max(500, data.interval || 5000);  // minimum 500ms
 
         var wrap = document.createElement('div');
         wrap.className = 'carousel-wrap';
@@ -359,7 +359,7 @@
         try { data = JSON.parse(content || '{}'); } catch(e) {}
 
         var text   = data.text   || '';
-        var speed  = data.speed  || 80;  // px/sec
+        var speed  = Math.max(1, data.speed  || 80);  // px/sec; clamp to ≥1 to prevent idle loop
         var color  = data.color  || '#ffffff';
         var size   = data.size   || 28;
         var weight = data.weight || 'bold';
@@ -371,10 +371,10 @@
         wrap.className = 'marquee-wrap';
 
         var span = document.createElement('span');
-        span.className       = 'marquee-text';
-        span.textContent     = text || '';
-        span.style.color     = color;
-        span.style.fontSize  = size + 'px';
+        span.className        = 'marquee-text';
+        span.textContent      = text || '';
+        span.style.color      = color;
+        span.style.fontSize   = size + 'px';
         span.style.fontWeight = weight;
         span.style.paddingLeft = '100%';
 
@@ -383,11 +383,13 @@
 
         if (!text) return;
 
-        var pos      = 0;
-        var lastTime = null;
+        var cancelled = false;
+        var pos       = 0;
+        var lastTime  = null;
 
         function step(ts) {
-            if (!document.body.contains(span)) return; // element was removed (layout reload)
+            if (cancelled) return;  // stopped by stopAnimations()
+            if (!document.body.contains(span)) return;  // DOM removed on layout reload
             if (lastTime === null) lastTime = ts;
             var dt = (ts - lastTime) / 1000; // seconds
             lastTime = ts;
@@ -396,12 +398,11 @@
             var textW = span.offsetWidth;
             if (pos < -textW) pos = 0;
             span.style.transform = 'translateX(' + pos + 'px)';
-            var raf = requestAnimationFrame(step);
-            _marqueeRAFs.push(raf);
+            requestAnimationFrame(step);
         }
 
-        var raf = requestAnimationFrame(step);
-        _marqueeRAFs.push(raf);
+        requestAnimationFrame(step);
+        _marqueeStops.push(function() { cancelled = true; });
     }
 
     document.addEventListener('DOMContentLoaded', loadLayout);

@@ -270,6 +270,8 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <button class="btn purple" onclick="createSection()">+ Section</button>
         <button class="btn"        onclick="createBlock('text','free')">+ Free Text</button>
         <button class="btn"        onclick="createBlock('video',null)">+ Video</button>
+        <button class="btn"        onclick="createBlock('carousel',null)">+ Carousel</button>
+        <button class="btn orange" onclick="createBlock('marquee',null)">+ Marquee</button>
         <div class="sep"></div>
     <?php endif; ?>
 
@@ -278,8 +280,6 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <button class="btn orange" onclick="createBlock('text','price')">+ Price</button>
     <button class="btn orange" onclick="createBlock('text','description')">+ Description</button>
     <button class="btn"        onclick="createBlock('image',null)">+ Image</button>
-    <button class="btn"        onclick="createBlock('carousel',null)">+ Carousel</button>
-    <button class="btn orange" onclick="createBlock('marquee',null)">+ Marquee</button>
 
     <?php if ($isAdmin): ?>
     <div class="sep"></div>
@@ -1567,7 +1567,7 @@ function saveCarouselSlides() {
             description: (row.querySelector('.slide-desc')     || {}).value || '',
         });
     });
-    var interval = Math.max(1, parseFloat(document.getElementById('carousel-interval').value || 5)) * 1000;
+    var interval = Math.max(1000, (parseFloat(document.getElementById('carousel-interval').value) || 5) * 1000);
     var cd = { interval: interval, slides: slides };
     activeBlock.dataset.carouselData = JSON.stringify(cd);
     buildCarouselPreview(activeBlock, cd);

@@ -15,8 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_branding'])) {
     $accent    = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['accent']     ?? '') ? $_POST['accent']     : '#3498db';
     $navText   = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['nav_text']   ?? '') ? $_POST['nav_text']   : '#ffffff';
 
-    // Determine logo path — keep existing if no new file
-    $logoPath = $_POST['existing_logo'] ?? '';
+    // Determine logo path — keep existing if no new file; validate to prevent path traversal
+    $rawExisting = $_POST['existing_logo'] ?? '';
+    $logoPath = (preg_match('/^uploads\/brand_logo\.[a-z]{2,4}$/', $rawExisting)) ? $rawExisting : '';
 
     if (!empty($_FILES['logo_file']['name'])) {
         $allowed = ['image/png','image/jpeg','image/gif','image/webp','image/svg+xml'];
