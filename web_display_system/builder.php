@@ -119,7 +119,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
 /* Image / video blocks */
 .editable-block img, .editable-block video {
-    width: 100%; height: 100%; object-fit: fill; display: block; pointer-events: none;
+    width: 100%; height: 100%; display: block; pointer-events: none;
 }
 
 /* ── Inspector ── */
@@ -336,15 +336,27 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 <div id="inspector">
     <h3 id="insp-title">Block</h3>
 
-    <!-- Size inputs (always visible when block selected) -->
-    <div class="insp-row" id="insp-dims">
-        <div>
-            <label>W (px)</label>
-            <input type="number" id="insp-w" min="40" max="1920" onchange="applyDim('w',this.value)">
+    <!-- Position + size (always visible when block selected) -->
+    <div id="insp-dims">
+        <div class="insp-row">
+            <div>
+                <label>X (px)</label>
+                <input type="number" id="insp-x" min="-1920" max="1920" onchange="applyPos('x',this.value)">
+            </div>
+            <div>
+                <label>Y (px)</label>
+                <input type="number" id="insp-y" min="-1080" max="1080" onchange="applyPos('y',this.value)">
+            </div>
         </div>
-        <div>
-            <label>H (px)</label>
-            <input type="number" id="insp-h" min="24" max="1080" onchange="applyDim('h',this.value)">
+        <div class="insp-row" style="margin-top:4px;">
+            <div>
+                <label>W (px)</label>
+                <input type="number" id="insp-w" min="40" max="1920" onchange="applyDim('w',this.value)">
+            </div>
+            <div>
+                <label>H (px)</label>
+                <input type="number" id="insp-h" min="24" max="1080" onchange="applyDim('h',this.value)">
+            </div>
         </div>
     </div>
 
@@ -415,10 +427,19 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <div id="insp-brand-name" style="font-size:11px; color:#bdc3c7; margin-top:4px;"></div>
     </div>
 
-    <!-- Image upload -->
+    <!-- Image upload + fit -->
     <div id="insp-image" class="insp-section" style="display:none;">
         <label>Upload Image</label>
         <input type="file" id="img-file" accept="image/*" onchange="uploadBlockImage(this)">
+        <label style="margin-top:8px;">Image Fit</label>
+        <select id="img-fit" onchange="changeImageFit(this.value)"
+                style="width:100%;padding:6px 8px;border-radius:4px;border:1px solid #34495e;background:#2c3e50;color:#fff;font-size:13px;margin-top:2px;">
+            <option value="fill">Stretch to fill (may distort)</option>
+            <option value="contain">Contain — whole image, letterbox</option>
+            <option value="cover">Cover — crop to fill, no distortion</option>
+            <option value="fit-w">Fit Width — clip height</option>
+            <option value="fit-h">Fit Height — clip width</option>
+        </select>
     </div>
 
     <!-- Video upload (admin only) -->
@@ -777,10 +798,16 @@ function renderBlock(el, parent) {
         inner.addEventListener('focus', function() { if (block !== activeBlock) selectBlock(block); });
         block.appendChild(inner);
     } else if (el.type === 'image') {
+        var _parts = (content || '').split('|');
+        var _imgSrc = _parts[0];
+        var _fit    = _parts[1] || 'fill';
+        block.dataset.imgFit = _fit;
+        block.dataset.imgSrc = _imgSrc;
         var img = document.createElement('img');
-        img.src = content || svgPlaceholder(el.width, el.height, 'Image');
+        img.src = _imgSrc || svgPlaceholder(el.width, el.height, 'Image');
         img.alt = '';
         block.appendChild(img);
+        applyImageFit(block, _fit);
     } else if (el.type === 'video') {
         var vid = document.createElement('video');
         vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
@@ -859,6 +886,8 @@ function showInspector(block) {
     var isSection = type === 'section';
 
     insp.style.display = 'flex';
+    document.getElementById('insp-x').value = Math.round(parseFloat(block.getAttribute('data-x')) || 0);
+    document.getElementById('insp-y').value = Math.round(parseFloat(block.getAttribute('data-y')) || 0);
     document.getElementById('insp-w').value = Math.round(block.offsetWidth);
     document.getElementById('insp-h').value = Math.round(block.offsetHeight);
     document.getElementById('insp-title').textContent =
@@ -892,8 +921,11 @@ function showInspector(block) {
     document.getElementById('insp-brand-lock').style.display = showBrand ? 'block' : 'none';
     if (showBrand) document.getElementById('insp-brand-name').textContent = TYPE_LABELS[subtype] || subtype;
 
-    // Image upload – all users, image blocks
+    // Image upload + fit – all users, image blocks
     document.getElementById('insp-image').style.display = (type==='image' && !isSection) ? 'block' : 'none';
+    if (type === 'image') {
+        document.getElementById('img-fit').value = block.dataset.imgFit || 'fill';
+    }
 
     // Video upload – admin only
     document.getElementById('insp-video').style.display = (IS_ADMIN && type==='video') ? 'block' : 'none';
@@ -1250,8 +1282,13 @@ function publishCanvas() {
             } else if (type === 'marquee') {
                 manual   = block.dataset.marqueeData || '{}';
                 savePool = false;
+            } else if (type === 'image') {
+                var _src = block.dataset.manualPath || block.dataset.imgSrc || '';
+                var _fit = block.dataset.imgFit || 'fill';
+                manual   = _fit !== 'fill' ? _src + '|' + _fit : _src;
+                savePool = !!block.dataset.manualPath;
             } else {
-                manual   = block.dataset.manualPath || (block.querySelector('img,video source') || {}).src || '';
+                manual   = block.dataset.manualPath || (block.querySelector('video source') || {}).src || '';
                 savePool = !!block.dataset.manualPath;
             }
         }
@@ -1434,6 +1471,10 @@ function handleMove(event) {
     t.style.transform = 'translate('+x+'px,'+y+'px)';
     t.setAttribute('data-x', x);
     t.setAttribute('data-y', y);
+    if (t === activeBlock) {
+        document.getElementById('insp-x').value = Math.round(x);
+        document.getElementById('insp-y').value = Math.round(y);
+    }
 }
 
 function handleResize(event) {
@@ -1478,6 +1519,54 @@ function applyDim(which, val) {
         activeBlock.style.height = val + 'px';
         document.getElementById('insp-h').value = val;
     }
+}
+
+function applyPos(which, val) {
+    if (!activeBlock) return;
+    val = parseInt(val) || 0;
+    var x = parseFloat(activeBlock.getAttribute('data-x')) || 0;
+    var y = parseFloat(activeBlock.getAttribute('data-y')) || 0;
+    if (which === 'x') x = val; else y = val;
+    activeBlock.style.transform = 'translate('+x+'px,'+y+'px)';
+    activeBlock.setAttribute('data-x', x);
+    activeBlock.setAttribute('data-y', y);
+    document.getElementById('insp-x').value = Math.round(x);
+    document.getElementById('insp-y').value = Math.round(y);
+}
+
+function applyImageFit(block, fit) {
+    var img = block.querySelector('img');
+    if (!img) return;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'fill';
+    block.style.overflow = '';
+    if (fit === 'contain') {
+        img.style.objectFit = 'contain';
+    } else if (fit === 'cover') {
+        img.style.objectFit = 'cover';
+    } else if (fit === 'fit-w') {
+        img.style.height = 'auto';
+        img.style.objectFit = '';
+        block.style.overflow = 'hidden';
+    } else if (fit === 'fit-h') {
+        img.style.width = 'auto';
+        img.style.objectFit = '';
+        block.style.overflow = 'hidden';
+    }
+}
+
+function changeImageFit(fit) {
+    if (!activeBlock || activeBlock.dataset.type !== 'image') return;
+    // Break asset-pool link so the fit mode gets saved alongside the path
+    if (activeBlock.dataset.assetId) {
+        var _s = activeBlock.dataset.imgSrc || '';
+        if (_s) activeBlock.dataset.manualPath = _s;
+        activeBlock.dataset.assetId = '';
+        document.getElementById('asset-link').value = '';
+    }
+    activeBlock.dataset.imgFit = fit;
+    applyImageFit(activeBlock, fit);
 }
 
 function tmpId() { return 'tmp-' + Math.random().toString(36).substr(2,9); }

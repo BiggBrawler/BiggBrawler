@@ -33,7 +33,7 @@
     }
     .element-block img, .element-block video {
         width: 100%; height: 100%;
-        object-fit: fill; display: block;
+        display: block;
     }
     .element-block video { object-fit: cover; }
 
@@ -229,9 +229,22 @@
                         block.innerHTML = content || '';
 
                     } else if (el.type === 'image') {
+                        var _p   = (content || '').split('|');
+                        var _src = _p[0];
+                        var _fit = _p[1] || 'fill';
                         var img = document.createElement('img');
-                        img.src = content || '';
+                        img.src = _src || '';
                         img.alt = '';
+                        // Apply fit mode
+                        if (_fit === 'contain' || _fit === 'cover') {
+                            img.style.objectFit = _fit;
+                        } else if (_fit === 'fit-w') {
+                            img.style.height = 'auto';
+                        } else if (_fit === 'fit-h') {
+                            img.style.width = 'auto';
+                        } else {
+                            img.style.objectFit = 'fill';
+                        }
                         block.appendChild(img);
 
                     } else if (el.type === 'video') {
