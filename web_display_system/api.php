@@ -13,6 +13,9 @@ if ($action !== 'get_layout') {
 header('Content-Type: application/json');
 $isAdmin = isAdmin();
 
+// Auto-migrate: add text_align column if not yet present
+try { $pdo->exec("ALTER TABLE canvas_elements ADD COLUMN text_align VARCHAR(16) NOT NULL DEFAULT ''"); } catch(Exception $e) {}
+
 // ---- Upload whitelists ----
 define('IMG_EXT',  ['jpg','jpeg','png','gif','webp']);
 define('IMG_MIME', ['image/jpeg','image/png','image/gif','image/webp']);
@@ -196,8 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
                  (section_id, type, block_subtype, x_pos, y_pos, width, height,
                   manual_content, asset_id,
                   font_family, font_size, font_color, font_weight, font_style, line_height,
-                  locked, sort_order)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+                  text_align, locked, sort_order)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
             )->execute([
                 $sectionId,
                 $type,
@@ -214,6 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
                 $el['font_weight']  ?? 'normal',
                 $el['font_style']   ?? 'normal',
                 number_format(floatval($el['line_height'] ?? 1.4), 2),
+                $el['text_align']   ?? '',
                 intval($el['locked'] ?? 0),
                 $order++,
             ]);

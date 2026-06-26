@@ -226,6 +226,7 @@
                             block.style.fontStyle   = el.font_style  || 'normal';
                             block.style.lineHeight  = el.line_height || 1.4;
                         }
+                        if (el.text_align) block.style.textAlign = el.text_align;
                         block.innerHTML = content || '';
 
                     } else if (el.type === 'image') {

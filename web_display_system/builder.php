@@ -95,6 +95,31 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 .editable-block.selected  { outline: 2px solid #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,.5); }
 .editable-block.multi-sel { outline: 2px solid #f39c12; box-shadow: 0 0 6px rgba(243,156,18,.4); }
 .editable-block.locked-block { cursor: default; }
+/* ── Resize handles ── */
+.rh {
+    position: absolute; width: 10px; height: 10px;
+    background: #fff; border: 2px solid #e74c3c; border-radius: 2px;
+    z-index: 20; pointer-events: auto; touch-action: none;
+    display: none; box-sizing: border-box;
+}
+.editable-block.selected .rh { display: block; }
+.rh-nw { top: -5px; left: -5px; cursor: nw-resize; }
+.rh-n  { top: -5px; left: calc(50% - 5px); cursor: n-resize; }
+.rh-ne { top: -5px; right: -5px; cursor: ne-resize; }
+.rh-e  { top: calc(50% - 5px); right: -5px; cursor: e-resize; }
+.rh-se { bottom: -5px; right: -5px; cursor: se-resize; }
+.rh-s  { bottom: -5px; left: calc(50% - 5px); cursor: s-resize; }
+.rh-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.rh-w  { top: calc(50% - 5px); left: -5px; cursor: w-resize; }
+/* Section blocks keep handles inside (overflow:hidden clips outside) */
+.section-block .rh-nw { top: 2px; left: 2px; }
+.section-block .rh-n  { top: 2px; }
+.section-block .rh-ne { top: 2px; right: 2px; }
+.section-block .rh-e  { right: 2px; }
+.section-block .rh-se { bottom: 2px; right: 2px; }
+.section-block .rh-s  { bottom: 2px; }
+.section-block .rh-sw { bottom: 2px; left: 2px; }
+.section-block .rh-w  { left: 2px; }
 .lock-icon {
     position: absolute; top: 2px; right: 2px; font-size: 11px; color: rgba(255,255,255,.8);
     background: rgba(0,0,0,.4); border-radius: 2px; padding: 1px 3px; pointer-events: none; z-index: 5;
@@ -259,7 +284,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <button class="btn purple" onclick="createSection()">+ Section</button>
         <button class="btn"        onclick="createBlock('image',null)">+ Image</button>
         <button class="btn"        onclick="createBlock('carousel',null)">+ Carousel</button>
-        <button class="btn orange" onclick="createBlock('marquee',null)">+ Marquee</button>
+        <button class="btn"        onclick="createBlock('marquee',null)">+ Marquee</button>
         <button class="btn"        onclick="createBlock('video',null)">+ Video</button>
         <div class="sep"></div>
     <?php endif; ?>
@@ -285,15 +310,23 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <button class="btn publish-btn" style="margin-left:auto;" onclick="publishCanvas()">&#10003; Publish</button>
 </div>
 
-<!-- ── Align bar (shown on multi-select) ── -->
+<!-- ── Align bar (shown on multi-select OR single select) ── -->
 <div id="align-bar">
-    <span>Align:</span>
-    <button class="align-btn" title="Align left edges"   onclick="alignBlocks('left')"    style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
-    <button class="align-btn" title="Align right edges"  onclick="alignBlocks('right')"   style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
-    <button class="align-btn" title="Align top edges"    onclick="alignBlocks('top')"     style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
-    <button class="align-btn" title="Align bottom edges" onclick="alignBlocks('bottom')"  style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
+    <span>Align selection:</span>
+    <button class="align-btn" title="Align left edges"    onclick="alignBlocks('left')"     style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
+    <button class="align-btn" title="Align right edges"   onclick="alignBlocks('right')"    style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
+    <button class="align-btn" title="Align top edges"     onclick="alignBlocks('top')"      style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
+    <button class="align-btn" title="Align bottom edges"  onclick="alignBlocks('bottom')"   style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
     <button class="align-btn" title="Center horizontally" onclick="alignBlocks('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
     <button class="align-btn" title="Center vertically"   onclick="alignBlocks('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
+    <div class="sep"></div>
+    <span style="font-size:11px;color:#bdc3c7;">Align to screen:</span>
+    <button class="align-btn" title="Align left edge to canvas" onclick="alignToScreen('left')"   style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
+    <button class="align-btn" title="Center on canvas"         onclick="alignToScreen('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
+    <button class="align-btn" title="Align right edge to canvas" onclick="alignToScreen('right')" style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
+    <button class="align-btn" title="Align top edge to canvas"  onclick="alignToScreen('top')"    style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
+    <button class="align-btn" title="Center vertically on canvas" onclick="alignToScreen('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
+    <button class="align-btn" title="Align bottom edge to canvas" onclick="alignToScreen('bottom')" style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
     <div class="sep"></div>
     <span id="sel-count" style="font-size:11px; color:#bdc3c7;"></span>
 </div>
@@ -335,6 +368,17 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
                 <label>H (px)</label>
                 <input type="number" id="insp-h" min="24" max="1080" onchange="applyDim('h',this.value)">
             </div>
+        </div>
+    </div>
+
+    <!-- Text align (all text blocks) -->
+    <div id="insp-text-align" class="insp-section" style="display:none;">
+        <label>Text Align</label>
+        <div style="display:flex; gap:4px; margin-top:4px;">
+            <button class="align-btn" id="ta-left"    onclick="applyTextAlign('left')"    title="Left"    style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
+            <button class="align-btn" id="ta-center"  onclick="applyTextAlign('center')"  title="Center"  style="width:auto;padding:0 8px;font-size:11px;">&#8660; Center</button>
+            <button class="align-btn" id="ta-right"   onclick="applyTextAlign('right')"   title="Right"   style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
+            <button class="align-btn" id="ta-justify" onclick="applyTextAlign('justify')" title="Justify" style="width:auto;padding:0 8px;font-size:11px;">&#8644; Justify</button>
         </div>
     </div>
 
@@ -682,11 +726,11 @@ function renderSection(el) {
     if (el.locked) appendLockIcon(s);
 
     s.addEventListener('mousedown', function(e) {
-        if (e.target === s || e.target === lbl) {
-            if (IS_ADMIN) selectBlock(s);
-            setTargetSection(s);
-        }
+        if (e.target.closest('.child-block')) return;
+        if (IS_ADMIN) selectBlock(s);
+        setTargetSection(s);
     });
+    addResizeHandles(s);
     document.getElementById('builder-canvas').appendChild(s);
 }
 
@@ -748,12 +792,22 @@ function renderBlock(el, parent) {
 
     if (el.type === 'text') {
         applyTextStyles(block, el);
+        if (el.text_align) { block.style.textAlign = el.text_align; block.dataset.textAlign = el.text_align; }
         var inner = document.createElement('div');
         inner.className = 'text-inner';
-        // Basic users can edit content but not CSS of branded blocks
-        inner.contentEditable = 'true';
+        inner.contentEditable = 'false'; // single-click selects/drags; double-click activates editing
         inner.innerHTML = content || (el.block_subtype !== 'free' ? 'Enter text here' : 'Double-click to edit');
         inner.addEventListener('focus', function() { if (block !== activeBlock) selectBlock(block); });
+        inner.addEventListener('blur',  function() { inner.contentEditable = 'false'; });
+        block.addEventListener('dblclick', function(e) {
+            if (block.dataset.locked === '1' || _shiftDown || e.target.closest('.rh')) return;
+            inner.contentEditable = 'true';
+            inner.focus();
+            if (document.caretRangeFromPoint) {
+                var range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                if (range) { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+            }
+        });
         block.appendChild(inner);
     } else if (el.type === 'image') {
         var _parts = (content || '').split('|');
@@ -786,7 +840,7 @@ function renderBlock(el, parent) {
     if (el.locked) appendLockIcon(block);
 
     block.addEventListener('mousedown', function(e) {
-        if (!e.shiftKey && e.target.closest('.text-inner')) return; // let text-inner handle its own focus (but shift+click still multi-selects)
+        if (e.target.closest('.rh')) return; // resize handles handled by interact.js
         if (e.shiftKey) {
             toggleMultiSel(block);
         } else {
@@ -794,6 +848,7 @@ function renderBlock(el, parent) {
         }
     });
 
+    addResizeHandles(block);
     parent.appendChild(block);
 }
 
@@ -832,12 +887,18 @@ function selectBlock(block) {
 }
 
 function deselectAll() {
-    if (activeBlock) { activeBlock.classList.remove('selected'); }
+    if (activeBlock) {
+        activeBlock.classList.remove('selected');
+        var _ti = activeBlock.querySelector('.text-inner');
+        if (_ti) _ti.contentEditable = 'false';
+    }
     activeBlock = null;
     document.getElementById('inspector').style.display = 'none';
+    if (multiSel.length === 0) document.getElementById('align-bar').style.display = 'none';
 }
 
 function showInspector(block) {
+    updateAlignBar(); // keep screen-align bar visible while a block is selected
     var insp = document.getElementById('inspector');
     var type    = block.dataset.type;
     var subtype = block.dataset.subtype || 'free';
@@ -878,6 +939,17 @@ function showInspector(block) {
     var showBrand = type==='text' && subtype!=='free';
     document.getElementById('insp-brand-lock').style.display = showBrand ? 'block' : 'none';
     if (showBrand) document.getElementById('insp-brand-name').textContent = TYPE_LABELS[subtype] || subtype;
+
+    // Text align – all text blocks
+    var showTextAlign = (type === 'text');
+    document.getElementById('insp-text-align').style.display = showTextAlign ? 'block' : 'none';
+    if (showTextAlign) {
+        var _ta = block.style.textAlign || 'left';
+        ['left','center','right','justify'].forEach(function(a) {
+            var btn = document.getElementById('ta-' + a);
+            if (btn) btn.style.background = (a === _ta) ? '#3498db' : '';
+        });
+    }
 
     // Image upload + fit – all users, image blocks
     document.getElementById('insp-image').style.display = (type==='image' && !isSection) ? 'block' : 'none';
@@ -955,10 +1027,12 @@ function clearMultiSel() {
 }
 
 function updateAlignBar() {
-    var bar = document.getElementById('align-bar');
-    if (multiSel.length > 1) {
+    var bar  = document.getElementById('align-bar');
+    var cnt  = document.getElementById('sel-count');
+    var total = multiSel.length + (activeBlock ? 1 : 0);
+    if (total > 0) {
         bar.style.display = 'flex';
-        document.getElementById('sel-count').textContent = multiSel.length + ' blocks selected';
+        cnt.textContent = multiSel.length > 1 ? multiSel.length + ' blocks selected' : '1 block selected';
     } else {
         bar.style.display = 'none';
     }
@@ -1278,6 +1352,7 @@ function publishCanvas() {
             font_weight:    block.style.fontWeight  || 'normal',
             font_style:     block.style.fontStyle   || 'normal',
             line_height:    parseFloat(block.style.lineHeight) || 1.4,
+            text_align:     block.dataset.textAlign || block.style.textAlign || '',
             locked:         block.dataset.locked === '1' ? 1 : 0,
             sort_order:     i,
         });
@@ -1310,14 +1385,22 @@ function publishCanvas() {
 function setupInteract() {
     var canvas = document.getElementById('builder-canvas');
 
+    // Handle-based resize edges (corners + sides)
+    var EDGES = {
+        top:    '.rh-nw, .rh-n, .rh-ne',
+        right:  '.rh-ne, .rh-e, .rh-se',
+        bottom: '.rh-se, .rh-s, .rh-sw',
+        left:   '.rh-sw, .rh-w, .rh-nw',
+    };
+
     if (IS_ADMIN) {
         // Sections: drag + resize, constrained to canvas
         interact('.section-block').draggable({
             listeners: { start: function(e) { if (_shiftDown) e.interaction.stop(); }, move: handleMove },
             modifiers: [interact.modifiers.restrictRect({restriction: canvas})],
-            ignoreFrom: '.editable-block',
+            ignoreFrom: '.child-block',  // let child blocks handle their own drag
         }).resizable({
-            edges: {left:true, right:true, bottom:true, top:true},
+            edges: EDGES,
             listeners: { move: handleResize, end: hideResizeLabel },
             modifiers: [interact.modifiers.restrictSize({min:{width:100,height:60}})]
         });
@@ -1327,13 +1410,13 @@ function setupInteract() {
             listeners: { start: function(e) { if (_shiftDown) e.interaction.stop(); }, move: handleMove },
             modifiers: [interact.modifiers.restrictRect({restriction: canvas})]
         }).resizable({
-            edges: {left:true, right:true, bottom:true, top:true},
+            edges: EDGES,
             listeners: { move: handleResize, end: hideResizeLabel },
         });
     }
 
-    // Child blocks: drag constrained to parent section; resize for admin
-    var childInteract = interact('.child-block').draggable({
+    // Child blocks: drag constrained to parent section; resize for all users
+    interact('.child-block').draggable({
         listeners: {
             start: function(e) { if (_shiftDown) e.interaction.stop(); },
             move: function(event) {
@@ -1342,22 +1425,11 @@ function setupInteract() {
             }
         },
         modifiers: [interact.modifiers.restrictRect({restriction: 'parent', endOnly: false})]
+    }).resizable({
+        edges: EDGES,
+        listeners: { move: handleResize, end: hideResizeLabel },
+        modifiers: [interact.modifiers.restrictRect({restriction: 'parent'})]
     });
-
-    if (IS_ADMIN) {
-        childInteract.resizable({
-            edges: {left:true, right:true, bottom:true, top:true},
-            listeners: { move: handleResize, end: hideResizeLabel },
-            modifiers: [interact.modifiers.restrictRect({restriction: 'parent'})]
-        });
-    } else {
-        // Basic users can also resize within section bounds
-        childInteract.resizable({
-            edges: {left:true, right:true, bottom:true, top:true},
-            listeners: { move: handleResize, end: hideResizeLabel },
-            modifiers: [interact.modifiers.restrictRect({restriction: 'parent'})]
-        });
-    }
 }
 
 function handleMove(event) {
@@ -1670,6 +1742,56 @@ function updateMarqueeStyle() {
     md.bg     = document.getElementById('marquee-bg').value;
     activeBlock.dataset.marqueeData = JSON.stringify(md);
     buildMarqueePreview(activeBlock, md);
+}
+
+// ============================================================
+// RESIZE HANDLES
+// ============================================================
+function addResizeHandles(block) {
+    ['nw','n','ne','e','se','s','sw','w'].forEach(function(pos) {
+        var h = document.createElement('div');
+        h.className = 'rh rh-' + pos;
+        block.appendChild(h);
+    });
+}
+
+// ============================================================
+// TEXT ALIGN
+// ============================================================
+function applyTextAlign(align) {
+    if (!activeBlock || activeBlock.dataset.type !== 'text') return;
+    activeBlock.style.textAlign = align;
+    activeBlock.dataset.textAlign = align;
+    ['left','center','right','justify'].forEach(function(a) {
+        var btn = document.getElementById('ta-' + a);
+        if (btn) btn.style.background = (a === align) ? '#3498db' : '';
+    });
+}
+
+// ============================================================
+// ALIGN TO SCREEN (1920 × 1080 canvas)
+// ============================================================
+function alignToScreen(direction) {
+    var CANVAS_W = 1920, CANVAS_H = 1080;
+    var targets = multiSel.length > 0 ? multiSel : (activeBlock ? [activeBlock] : []);
+    if (targets.length === 0) return;
+    targets.forEach(function(block) {
+        var x = parseFloat(block.getAttribute('data-x')) || 0;
+        var y = parseFloat(block.getAttribute('data-y')) || 0;
+        var w = block.offsetWidth;
+        var h = block.offsetHeight;
+        if      (direction === 'left')     x = 0;
+        else if (direction === 'right')    x = CANVAS_W - w;
+        else if (direction === 'center-h') x = (CANVAS_W - w) / 2;
+        else if (direction === 'top')      y = 0;
+        else if (direction === 'bottom')   y = CANVAS_H - h;
+        else if (direction === 'center-v') y = (CANVAS_H - h) / 2;
+        moveBlock(block, x, y);
+    });
+    if (activeBlock && targets.indexOf(activeBlock) >= 0) {
+        document.getElementById('insp-x').value = Math.round(parseFloat(activeBlock.getAttribute('data-x')) || 0);
+        document.getElementById('insp-y').value = Math.round(parseFloat(activeBlock.getAttribute('data-y')) || 0);
+    }
 }
 </script>
 <div id="resize-label"></div>
