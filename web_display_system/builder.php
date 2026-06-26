@@ -174,6 +174,14 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     padding:0 12px; white-space:nowrap; overflow:hidden;
 }
 
+/* ── Resize size tooltip ── */
+#resize-label {
+    display:none; position:fixed; z-index:9999;
+    background:rgba(0,0,0,.82); color:#fff; font-size:13px; font-weight:bold;
+    padding:4px 10px; border-radius:5px; pointer-events:none; white-space:nowrap;
+    transform:translate(-50%,-50%); letter-spacing:.5px;
+}
+
 /* ── Carousel Slide Editor Modal ── */
 #carousel-modal-overlay {
     display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
@@ -301,13 +309,13 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
 <!-- ── Align bar (shown on multi-select) ── -->
 <div id="align-bar">
-    <span>Align selection:</span>
-    <button class="align-btn" title="Align Left"   onclick="alignBlocks('left')">⬛←</button>
-    <button class="align-btn" title="Align Right"  onclick="alignBlocks('right')">→⬛</button>
-    <button class="align-btn" title="Align Top"    onclick="alignBlocks('top')">⬛↑</button>
-    <button class="align-btn" title="Align Bottom" onclick="alignBlocks('bottom')">↓⬛</button>
-    <button class="align-btn" title="Center Horiz" onclick="alignBlocks('center-h')">⬛|⬛</button>
-    <button class="align-btn" title="Center Vert"  onclick="alignBlocks('center-v')">⬛—⬛</button>
+    <span>Align:</span>
+    <button class="align-btn" title="Align left edges"   onclick="alignBlocks('left')"    style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
+    <button class="align-btn" title="Align right edges"  onclick="alignBlocks('right')"   style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
+    <button class="align-btn" title="Align top edges"    onclick="alignBlocks('top')"     style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
+    <button class="align-btn" title="Align bottom edges" onclick="alignBlocks('bottom')"  style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
+    <button class="align-btn" title="Center horizontally" onclick="alignBlocks('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
+    <button class="align-btn" title="Center vertically"   onclick="alignBlocks('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
     <div class="sep"></div>
     <span id="sel-count" style="font-size:11px; color:#bdc3c7;"></span>
 </div>
@@ -327,6 +335,18 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 <!-- ── Inspector panel ── -->
 <div id="inspector">
     <h3 id="insp-title">Block</h3>
+
+    <!-- Size inputs (always visible when block selected) -->
+    <div class="insp-row" id="insp-dims">
+        <div>
+            <label>W (px)</label>
+            <input type="number" id="insp-w" min="40" max="1920" onchange="applyDim('w',this.value)">
+        </div>
+        <div>
+            <label>H (px)</label>
+            <input type="number" id="insp-h" min="24" max="1080" onchange="applyDim('h',this.value)">
+        </div>
+    </div>
 
     <!-- Section controls (admin only) -->
     <div id="insp-section" class="insp-section" style="display:none;">
@@ -457,6 +477,11 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <select id="asset-link" onchange="linkAsset(this.value)">
             <option value="">— None (manual content) —</option>
         </select>
+    </div>
+
+    <!-- Align tip -->
+    <div class="insp-section" style="font-size:11px;color:#7f8c8d;line-height:1.5;">
+        &#128161; <strong style="color:#bdc3c7;">Alignment tools:</strong> Shift+click a second block — a toolbar appears above the canvas to align or distribute them.
     </div>
 
     <!-- Lock toggle -->
@@ -834,6 +859,8 @@ function showInspector(block) {
     var isSection = type === 'section';
 
     insp.style.display = 'flex';
+    document.getElementById('insp-w').value = Math.round(block.offsetWidth);
+    document.getElementById('insp-h').value = Math.round(block.offsetHeight);
     document.getElementById('insp-title').textContent =
         isSection ? 'Section' :
         subtype !== 'free' ? (TYPE_LABELS[subtype]||subtype) :
@@ -1358,7 +1385,7 @@ function setupInteract() {
             ignoreFrom: '.editable-block',
         }).resizable({
             edges: {left:true, right:true, bottom:true, top:true},
-            listeners: { move: handleResize },
+            listeners: { move: handleResize, end: hideResizeLabel },
             modifiers: [interact.modifiers.restrictSize({min:{width:100,height:60}})]
         });
 
@@ -1368,7 +1395,7 @@ function setupInteract() {
             modifiers: [interact.modifiers.restrictRect({restriction: canvas})]
         }).resizable({
             edges: {left:true, right:true, bottom:true, top:true},
-            listeners: { move: handleResize },
+            listeners: { move: handleResize, end: hideResizeLabel },
         });
     }
 
@@ -1386,14 +1413,14 @@ function setupInteract() {
     if (IS_ADMIN) {
         childInteract.resizable({
             edges: {left:true, right:true, bottom:true, top:true},
-            listeners: { move: handleResize },
+            listeners: { move: handleResize, end: hideResizeLabel },
             modifiers: [interact.modifiers.restrictRect({restriction: 'parent'})]
         });
     } else {
         // Basic users can also resize within section bounds
         childInteract.resizable({
             edges: {left:true, right:true, bottom:true, top:true},
-            listeners: { move: handleResize },
+            listeners: { move: handleResize, end: hideResizeLabel },
             modifiers: [interact.modifiers.restrictRect({restriction: 'parent'})]
         });
     }
@@ -1419,11 +1446,40 @@ function handleResize(event) {
     t.style.transform = 'translate('+x+'px,'+y+'px)';
     t.setAttribute('data-x', x);
     t.setAttribute('data-y', y);
+
+    var w = Math.round(event.rect.width);
+    var h = Math.round(event.rect.height);
+    var lbl = document.getElementById('resize-label');
+    lbl.textContent = w + ' × ' + h + ' px';
+    var r = t.getBoundingClientRect();
+    lbl.style.left = (r.left + r.width  / 2) + 'px';
+    lbl.style.top  = (r.top  + r.height / 2) + 'px';
+    lbl.style.display = 'block';
+    document.getElementById('insp-w').value = w;
+    document.getElementById('insp-h').value = h;
+}
+
+function hideResizeLabel() {
+    document.getElementById('resize-label').style.display = 'none';
 }
 
 // ============================================================
 // UTILITIES
 // ============================================================
+function applyDim(which, val) {
+    if (!activeBlock) return;
+    val = parseInt(val) || 0;
+    if (which === 'w') {
+        val = Math.max(40, val);
+        activeBlock.style.width = val + 'px';
+        document.getElementById('insp-w').value = val;
+    } else {
+        val = Math.max(24, val);
+        activeBlock.style.height = val + 'px';
+        document.getElementById('insp-h').value = val;
+    }
+}
+
 function tmpId() { return 'tmp-' + Math.random().toString(36).substr(2,9); }
 
 function rgbToHex(rgb) {
@@ -1630,5 +1686,6 @@ function updateMarqueeStyle() {
     buildMarqueePreview(activeBlock, md);
 }
 </script>
+<div id="resize-label"></div>
 </body>
 </html>
