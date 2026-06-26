@@ -12,6 +12,7 @@ $msgType = 'success';
 // USER MANAGEMENT ACTIONS
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifyCsrf();
 
     // Create user
     if (isset($_POST['action_create_user'])) {
@@ -46,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email  = trim($_POST['edit_email'] ?? '');
         if ($uid === $user['id'] && $role !== 'admin') {
             $msg = 'You cannot demote your own account.'; $msgType = 'error';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $msg = 'Invalid email address.'; $msgType = 'error';
         } else {
             $pdo->prepare("UPDATE users SET role = ?, is_active = ?, email = ? WHERE id = ?")
                 ->execute([$role, $active, $email, $uid]);
@@ -224,6 +227,7 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
     <div class="card">
         <h2>Add New User</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken()) ?>">
             <div class="form-row">
                 <div class="form-group">
                     <label>Username</label>
@@ -282,6 +286,7 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
                         <?php if ($u['id'] !== $user['id']): ?>
                         <form method="POST" style="display:inline;"
                               onsubmit="return confirm('Delete user <?= htmlspecialchars($u['username']) ?>?')">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken()) ?>">
                             <input type="hidden" name="del_id" value="<?= $u['id'] ?>">
                             <button type="submit" name="action_delete_user"
                                     class="btn btn-red" style="font-size:11px; padding:5px 10px;">Delete</button>
@@ -293,6 +298,7 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
                 <tr class="edit-row" id="edit-<?= $u['id'] ?>">
                     <td colspan="6">
                         <form method="POST">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken()) ?>">
                             <div class="form-row">
                                 <input type="hidden" name="edit_id" value="<?= $u['id'] ?>">
                                 <div class="form-group">
@@ -321,6 +327,7 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
                             </div>
                         </form>
                         <form method="POST" style="margin-top:8px;">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken()) ?>">
                             <div class="form-row">
                                 <input type="hidden" name="reset_uid" value="<?= $u['id'] ?>">
                                 <div class="form-group">
@@ -353,6 +360,7 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
             Changes take effect immediately on the display screen.
         </p>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken()) ?>">
             <table class="bs-table">
                 <thead>
                     <tr>

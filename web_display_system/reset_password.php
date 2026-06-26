@@ -79,6 +79,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_reset'])) {
         exit;
     }
 
+    $_SESSION['reset_attempts'] = ($_SESSION['reset_attempts'] ?? 0);
+
+    // After 5 wrong guesses, invalidate the token and restart
+    if ($_SESSION['reset_attempts'] >= 5) {
+        $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$userId]);
+        unset($_SESSION['reset_user_id'], $_SESSION['reset_step'], $_SESSION['reset_attempts']);
+        header('Location: reset_password.php?restart=1');
+        exit;
+    }
+
     if ($passcode === '' || $newPass === '') {
         $message = 'Please fill in all fields.';
         $msgType = 'error';
@@ -101,7 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_reset'])) {
         $reset = $stmt->fetch();
 
         if (!$reset) {
-            $message = 'That code is incorrect or has expired. Please start over.';
+            $_SESSION['reset_attempts']++;
+            $attemptsLeft = 5 - $_SESSION['reset_attempts'];
+            $message = $attemptsLeft > 0
+                ? 'That code is incorrect or has expired. ' . $attemptsLeft . ' attempt(s) remaining.'
+                : 'Too many incorrect attempts. Please request a new code.';
             $msgType = 'error';
             $step = 2;
         } else {
@@ -110,7 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_reset'])) {
             $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
                 ->execute([password_hash($newPass, PASSWORD_DEFAULT), $userId]);
 
-            unset($_SESSION['reset_user_id'], $_SESSION['reset_step']);
+            unset($_SESSION['reset_user_id'], $_SESSION['reset_step'], $_SESSION['reset_attempts']);
+            session_regenerate_id(true);
             header('Location: login.php?reset=1');
             exit;
         }

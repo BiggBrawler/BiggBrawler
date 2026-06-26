@@ -20,28 +20,46 @@ if (!defined('BRAND_TEXT'))       define('BRAND_TEXT',       '#ffffff');
 
 $error = '';
 
+// Rate limiting: 5 failed attempts → 5-minute lockout
+$_SESSION['login_attempts'] = $_SESSION['login_attempts'] ?? 0;
+$_SESSION['login_last_fail'] = $_SESSION['login_last_fail'] ?? 0;
+
+$lockoutDuration = 300; // 5 minutes in seconds
+$maxAttempts     = 5;
+$lockedOut       = ($_SESSION['login_attempts'] >= $maxAttempts)
+                   && (time() - $_SESSION['login_last_fail'] < $lockoutDuration);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    if ($username === '' || $password === '') {
-        $error = 'Please enter both your username and password.';
+    if ($lockedOut) {
+        $remaining = $lockoutDuration - (time() - $_SESSION['login_last_fail']);
+        $error = 'Too many failed attempts. Please wait ' . ceil($remaining / 60) . ' minute(s) before trying again.';
     } else {
-        $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active FROM users WHERE username = ? LIMIT 1");
-        $stmt->execute([$username]);
-        $user = $stmt->fetch();
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-        if (!$user || !password_verify($password, $user['password_hash'])) {
-            $error = 'Incorrect username or password.';
-        } elseif (!$user['is_active']) {
-            $error = 'Your account has been deactivated. Please contact your manager.';
+        if ($username === '' || $password === '') {
+            $error = 'Please enter both your username and password.';
         } else {
-            session_regenerate_id(true);
-            $_SESSION['user_id']  = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role']     = $user['role'];
-            header('Location: builder.php');
-            exit;
+            $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active FROM users WHERE username = ? LIMIT 1");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+
+            if (!$user || !password_verify($password, $user['password_hash'])) {
+                $_SESSION['login_attempts']++;
+                $_SESSION['login_last_fail'] = time();
+                $error = 'Incorrect username or password.';
+            } elseif (!$user['is_active']) {
+                $error = 'Your account has been deactivated. Please contact your manager.';
+            } else {
+                // Successful login — clear rate limit state
+                unset($_SESSION['login_attempts'], $_SESSION['login_last_fail']);
+                session_regenerate_id(true);
+                $_SESSION['user_id']  = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['role']     = $user['role'];
+                header('Location: builder.php');
+                exit;
+            }
         }
     }
 }

@@ -78,6 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_create'])) {
 // UPDATE
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update'])) {
+    if (!isAdmin()) {
+        $message  = 'Only admins can edit assets.';
+        $msgClass = 'error';
+    } else {
     $id      = intval($_POST['edit_id'] ?? 0);
     $type    = $_POST['edit_type']  ?? '';
     $label   = trim($_POST['edit_label']  ?? '');
@@ -102,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update'])) {
         $stmt->execute([$label, $content, $id]);
         $message = 'Asset updated successfully.';
     }
+    } // end isAdmin check
 }
 
 // ============================================================
@@ -364,6 +369,7 @@ if (isset($_GET['edit_id'])) {
                     </td>
                     <td>
                         <div class="action-row">
+                            <?php if (isAdmin()): ?>
                             <a href="crud.php?edit_id=<?= $row['id'] ?>" class="btn btn-blue" style="text-decoration:none; font-size:12px; padding:6px 12px;">Edit</a>
 
                             <form method="POST" action="crud.php" style="display:inline;"
@@ -372,6 +378,9 @@ if (isset($_GET['edit_id'])) {
                                 <input type="hidden" name="delete_id" value="<?= $row['id'] ?>">
                                 <button type="submit" class="btn btn-red" style="font-size:12px; padding:6px 12px;">Delete</button>
                             </form>
+                            <?php else: ?>
+                            <span style="font-size:12px; color:#95a5a6;">View only</span>
+                            <?php endif; ?>
                         </div>
                     </td>
                 </tr>

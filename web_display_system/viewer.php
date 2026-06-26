@@ -137,6 +137,7 @@
     setInterval(loadLayout, 30000);
 
     var _layoutHash = '';
+    var _loading    = false;
     var _carouselTimers = [];
     var _marqueeStops   = [];   // array of cancel functions, one per marquee
 
@@ -148,9 +149,12 @@
     }
 
     function loadLayout() {
+        if (_loading) return;
+        _loading = true;
         fetch('api.php?action=get_layout')
             .then(function(r) { return r.json(); })
             .then(function(data) {
+                _loading = false;
                 var hash = JSON.stringify(data);
                 if (hash === _layoutHash) return; // nothing changed — leave videos running
                 _layoutHash = hash;
@@ -257,7 +261,7 @@
                 });
             })
             .catch(function() {
-                // Silent fail – keep displaying current content
+                _loading = false; // allow retry on next interval
             });
     }
 
