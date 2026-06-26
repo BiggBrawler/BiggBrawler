@@ -8,6 +8,13 @@ if (isLoggedIn()) {
     exit;
 }
 
+// Load store branding (defaults if config not yet set)
+if (!defined('BRAND_NAV_BG') && file_exists(__DIR__ . '/branding_config.php')) {
+    require_once __DIR__ . '/branding_config.php';
+}
+if (!defined('BRAND_LOGO'))   define('BRAND_LOGO',   '');
+if (!defined('BRAND_ACCENT')) define('BRAND_ACCENT', '#3498db');
+
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -66,14 +73,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 16px; margin-bottom: 18px;
             transition: border-color .2s;
         }
-        input:focus { outline: none; border-color: #3498db; }
+        input:focus { outline: none; border-color: <?= htmlspecialchars(BRAND_ACCENT) ?>; }
         .btn {
             width: 100%; padding: 13px;
-            background: #3498db; color: #fff;
+            background: <?= htmlspecialchars(BRAND_ACCENT) ?>; color: #fff;
             border: none; border-radius: 6px;
             font-size: 16px; font-weight: bold; cursor: pointer;
         }
-        .btn:hover { background: #2980b9; }
+        .btn:hover { filter: brightness(0.88); }
         .error {
             background: #fdecea; color: #c0392b;
             border: 1px solid #e74c3c;
@@ -87,6 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <div class="card">
+    <?php if (BRAND_LOGO): ?>
+        <div style="text-align:center; margin-bottom:16px;">
+            <img src="<?= htmlspecialchars(BRAND_LOGO) ?>" alt="<?= htmlspecialchars(SITE_NAME) ?>"
+                 style="max-height:60px; max-width:180px; object-fit:contain;">
+        </div>
+    <?php endif; ?>
     <h1><?= htmlspecialchars(SITE_NAME) ?></h1>
     <p class="subtitle">Sign in to your account</p>
     <?php if ($error): ?>

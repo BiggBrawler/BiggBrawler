@@ -36,6 +36,85 @@
         object-fit: fill; display: block;
     }
     .element-block video { object-fit: cover; }
+
+    /* ── Carousel ── */
+    .carousel-wrap {
+        position: relative;
+        width: 100%; height: 100%;
+        overflow: hidden;
+        background: #000;
+    }
+    .carousel-slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transition: opacity 0.8s ease-in-out;
+        overflow: hidden;
+    }
+    .carousel-slide.active { opacity: 1; }
+    .carousel-slide img {
+        width: 100%; height: 100%;
+        object-fit: cover; display: block;
+        flex-shrink: 0;
+    }
+    .carousel-info {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        background: linear-gradient(transparent, rgba(0,0,0,0.82));
+        padding: 14px 18px 12px;
+    }
+    .carousel-title {
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+        color: #f0f0f0;
+        font-size: 1.4em;
+        line-height: 1.2;
+        margin-bottom: 2px;
+    }
+    .carousel-price {
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+        color: #f39c12;
+        font-size: 1.6em;
+        line-height: 1.2;
+        margin-bottom: 3px;
+    }
+    .carousel-desc {
+        font-family: Arial, sans-serif;
+        color: #ccc;
+        font-size: 0.88em;
+        line-height: 1.4;
+    }
+    /* Slide counter dot */
+    .carousel-dots {
+        position: absolute;
+        top: 8px; right: 10px;
+        display: flex; gap: 5px;
+    }
+    .carousel-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.35);
+        transition: background 0.3s;
+    }
+    .carousel-dot.active { background: #fff; }
+
+    /* ── Marquee ── */
+    .marquee-wrap {
+        width: 100%; height: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+    }
+    .marquee-text {
+        white-space: nowrap;
+        will-change: transform;
+        display: inline-block;
+        padding-left: 100%;
+        font-family: Arial, sans-serif;
+    }
 </style>
 </head>
 <body>
@@ -58,6 +137,15 @@
     setInterval(loadLayout, 30000);
 
     var _layoutHash = '';
+    var _carouselTimers = [];
+    var _marqueeRAFs   = [];
+
+    function stopAnimations() {
+        _carouselTimers.forEach(function(t) { clearInterval(t); });
+        _carouselTimers = [];
+        _marqueeRAFs.forEach(function(id) { cancelAnimationFrame(id); });
+        _marqueeRAFs = [];
+    }
 
     function loadLayout() {
         fetch('api.php?action=get_layout')
@@ -66,6 +154,8 @@
                 var hash = JSON.stringify(data);
                 if (hash === _layoutHash) return; // nothing changed — leave videos running
                 _layoutHash = hash;
+
+                stopAnimations();
 
                 var canvas = document.getElementById('viewer-canvas');
                 canvas.innerHTML = '';
@@ -155,6 +245,12 @@
                             vid.appendChild(src);
                         }
                         block.appendChild(vid);
+
+                    } else if (el.type === 'carousel') {
+                        renderCarousel(block, content);
+
+                    } else if (el.type === 'marquee') {
+                        renderMarquee(block, content);
                     }
 
                     parent.appendChild(block);
@@ -163,6 +259,149 @@
             .catch(function() {
                 // Silent fail – keep displaying current content
             });
+    }
+
+    // ── Carousel ────────────────────────────────────────────────
+    function renderCarousel(block, content) {
+        var data = {};
+        try { data = JSON.parse(content || '{}'); } catch(e) {}
+        var slides   = data.slides   || [];
+        var interval = data.interval || 5000;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'carousel-wrap';
+
+        if (slides.length === 0) {
+            wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#666;font-family:Arial;font-size:18px;';
+            wrap.textContent = 'Carousel — no slides added yet';
+            block.appendChild(wrap);
+            return;
+        }
+
+        var slideEls = [];
+        slides.forEach(function(s) {
+            var slide = document.createElement('div');
+            slide.className = 'carousel-slide';
+
+            if (s.image) {
+                var img = document.createElement('img');
+                img.src = s.image;
+                img.alt = s.title || '';
+                slide.appendChild(img);
+            } else {
+                slide.style.background = '#1a1a2e';
+            }
+
+            var hasInfo = s.title || s.price || s.description;
+            if (hasInfo) {
+                var info = document.createElement('div');
+                info.className = 'carousel-info';
+                if (s.title) {
+                    var t = document.createElement('div');
+                    t.className   = 'carousel-title';
+                    t.textContent = s.title;
+                    info.appendChild(t);
+                }
+                if (s.price) {
+                    var p = document.createElement('div');
+                    p.className   = 'carousel-price';
+                    p.textContent = s.price;
+                    info.appendChild(p);
+                }
+                if (s.description) {
+                    var d = document.createElement('div');
+                    d.className   = 'carousel-desc';
+                    d.textContent = s.description;
+                    info.appendChild(d);
+                }
+                slide.appendChild(info);
+            }
+
+            wrap.appendChild(slide);
+            slideEls.push(slide);
+        });
+
+        // Dot indicators
+        if (slides.length > 1) {
+            var dots = document.createElement('div');
+            dots.className = 'carousel-dots';
+            slideEls.forEach(function(_, i) {
+                var dot = document.createElement('div');
+                dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+                dots.appendChild(dot);
+            });
+            wrap.appendChild(dots);
+        }
+
+        block.appendChild(wrap);
+
+        // Activate first slide immediately
+        if (slideEls.length > 0) slideEls[0].classList.add('active');
+        if (slideEls.length < 2) return;
+
+        var current = 0;
+        var dotEls  = wrap.querySelectorAll('.carousel-dot');
+
+        var timer = setInterval(function() {
+            slideEls[current].classList.remove('active');
+            if (dotEls[current]) dotEls[current].classList.remove('active');
+            current = (current + 1) % slideEls.length;
+            slideEls[current].classList.add('active');
+            if (dotEls[current]) dotEls[current].classList.add('active');
+        }, interval);
+
+        _carouselTimers.push(timer);
+    }
+
+    // ── Marquee ─────────────────────────────────────────────────
+    function renderMarquee(block, content) {
+        var data = {};
+        try { data = JSON.parse(content || '{}'); } catch(e) {}
+
+        var text   = data.text   || '';
+        var speed  = data.speed  || 80;  // px/sec
+        var color  = data.color  || '#ffffff';
+        var size   = data.size   || 28;
+        var weight = data.weight || 'bold';
+        var bg     = data.bg     || '#c0392b';
+
+        block.style.background = bg;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'marquee-wrap';
+
+        var span = document.createElement('span');
+        span.className       = 'marquee-text';
+        span.textContent     = text || '';
+        span.style.color     = color;
+        span.style.fontSize  = size + 'px';
+        span.style.fontWeight = weight;
+        span.style.paddingLeft = '100%';
+
+        wrap.appendChild(span);
+        block.appendChild(wrap);
+
+        if (!text) return;
+
+        var pos      = 0;
+        var lastTime = null;
+
+        function step(ts) {
+            if (!document.body.contains(span)) return; // element was removed (layout reload)
+            if (lastTime === null) lastTime = ts;
+            var dt = (ts - lastTime) / 1000; // seconds
+            lastTime = ts;
+            pos -= speed * dt;
+            // Reset when text has fully scrolled off the left edge
+            var textW = span.offsetWidth;
+            if (pos < -textW) pos = 0;
+            span.style.transform = 'translateX(' + pos + 'px)';
+            var raf = requestAnimationFrame(step);
+            _marqueeRAFs.push(raf);
+        }
+
+        var raf = requestAnimationFrame(step);
+        _marqueeRAFs.push(raf);
     }
 
     document.addEventListener('DOMContentLoaded', loadLayout);

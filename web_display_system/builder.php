@@ -4,6 +4,16 @@ require_once 'db_connect.php';
 requireLogin();
 $me      = currentUser();
 $isAdmin = isAdmin();
+
+// Load store branding (defaults if config not yet set)
+if (!defined('BRAND_NAV_BG') && file_exists(__DIR__ . '/branding_config.php')) {
+    require_once __DIR__ . '/branding_config.php';
+}
+if (!defined('BRAND_LOGO'))       define('BRAND_LOGO',       '');
+if (!defined('BRAND_NAV_BG'))     define('BRAND_NAV_BG',     '#1a252f');
+if (!defined('BRAND_NAV_BORDER')) define('BRAND_NAV_BORDER', '#0d1b24');
+if (!defined('BRAND_ACCENT'))     define('BRAND_ACCENT',     '#3498db');
+if (!defined('BRAND_TEXT'))       define('BRAND_TEXT',       '#ffffff');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,16 +29,17 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
 /* ── Nav ── */
 #top-nav {
-    background: #1a252f; padding: 0 16px; display: flex; align-items: center;
-    gap: 14px; height: 46px; flex-shrink: 0; border-bottom: 1px solid #0d1b24;
+    background: <?= htmlspecialchars(BRAND_NAV_BG) ?>; padding: 0 16px; display: flex; align-items: center;
+    gap: 14px; height: 46px; flex-shrink: 0; border-bottom: 1px solid <?= htmlspecialchars(BRAND_NAV_BORDER) ?>;
 }
-#top-nav .brand { font-weight: bold; font-size: 14px; color: #fff; margin-right: auto; }
+#top-nav .brand { font-weight: bold; font-size: 14px; color: <?= htmlspecialchars(BRAND_TEXT) ?>; margin-right: auto; }
 #top-nav a { color: #bdc3c7; text-decoration: none; font-size: 12px; padding: 5px 9px; border-radius: 3px; }
 #top-nav a:hover { background: #2c3e50; color: #fff; }
 #top-nav .user-info { font-size: 12px; color: #bdc3c7; }
 .role-tag { background: <?= $isAdmin ? '#e74c3c' : '#3498db' ?>; color: #fff;
             font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 8px;
             text-transform: uppercase; margin-left: 4px; }
+.btn.publish-btn { background: <?= htmlspecialchars(BRAND_ACCENT) ?>; }
 
 /* ── Control bar ── */
 #control-bar {
@@ -145,6 +156,60 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 .brand-lock { background: #8e44ad; color: #fff; font-size: 11px;
               padding: 3px 8px; border-radius: 10px; display: inline-block; margin-bottom: 4px; }
 
+/* ── Carousel block preview ── */
+.carousel-preview {
+    width:100%; height:100%; background:#1a1a2e;
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:6px; pointer-events:none;
+}
+.carousel-preview img { max-width:90%; max-height:55%; object-fit:contain; }
+.carousel-preview-lbl {
+    background:rgba(52,73,94,.9); color:#fff; padding:3px 12px;
+    border-radius:3px; font-size:12px; font-weight:600;
+}
+
+/* ── Marquee block preview ── */
+.marquee-preview {
+    height:100%; display:flex; align-items:center;
+    padding:0 12px; white-space:nowrap; overflow:hidden;
+}
+
+/* ── Carousel Slide Editor Modal ── */
+#carousel-modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:500; align-items:center; justify-content:center;
+}
+#carousel-modal-overlay.open { display:flex; }
+#carousel-modal {
+    background:#1a252f; border-radius:8px; padding:24px;
+    width:760px; max-width:95vw; max-height:90vh; overflow-y:auto;
+    border:1px solid #34495e;
+}
+#carousel-modal h2  { font-size:16px; margin-bottom:4px; }
+#carousel-modal > p { font-size:12px; color:#bdc3c7; margin-bottom:14px; }
+.slide-row {
+    background:#0d1b24; border:1px solid #2c3e50; border-radius:5px;
+    padding:12px; margin-bottom:10px;
+}
+.slide-header {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; font-weight:600; color:#f39c12; margin-bottom:8px;
+}
+.slide-fields { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.slide-field label { font-size:11px; color:#bdc3c7; display:block; margin-bottom:3px; }
+.slide-field input[type="text"],
+.slide-field textarea {
+    width:100%; padding:6px 8px; background:#2c3e50; border:1px solid #34495e;
+    color:#fff; border-radius:3px; font-size:13px;
+}
+.slide-field textarea { resize:vertical; }
+.slide-img-preview {
+    min-height:44px; background:#2c3e50; border:1px solid #34495e;
+    border-radius:3px; display:flex; align-items:center; justify-content:center;
+    padding:4px; margin-bottom:4px; font-size:11px; color:#7f8c8d;
+}
+.slide-img-preview img { max-width:100%; max-height:60px; object-fit:contain; }
+
 /* ── Brand Standards Modal (admin) ── */
 #brand-modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
@@ -181,10 +246,15 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
 <!-- ── Top Nav ── -->
 <div id="top-nav">
+    <?php if (BRAND_LOGO): ?>
+        <img src="<?= htmlspecialchars(BRAND_LOGO) ?>" alt="<?= htmlspecialchars(SITE_NAME) ?>"
+             style="max-height:32px; max-width:130px; object-fit:contain; flex-shrink:0;">
+    <?php endif; ?>
     <span class="brand"><?= htmlspecialchars(SITE_NAME) ?></span>
     <a href="crud.php">Asset Library</a>
     <?php if ($isAdmin): ?>
     <a href="admin_panel.php">Admin Panel</a>
+    <a href="setup_branding.php">Branding</a>
     <?php endif; ?>
     <span class="user-info">
         <?= htmlspecialchars($me['username']) ?>
@@ -208,6 +278,8 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <button class="btn orange" onclick="createBlock('text','price')">+ Price</button>
     <button class="btn orange" onclick="createBlock('text','description')">+ Description</button>
     <button class="btn"        onclick="createBlock('image',null)">+ Image</button>
+    <button class="btn"        onclick="createBlock('carousel',null)">+ Carousel</button>
+    <button class="btn orange" onclick="createBlock('marquee',null)">+ Marquee</button>
 
     <?php if ($isAdmin): ?>
     <div class="sep"></div>
@@ -224,7 +296,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <button class="btn purple" onclick="openBrandModal()">Brand Standards</button>
     <?php endif; ?>
 
-    <button class="btn green" style="margin-left:auto;" onclick="publishCanvas()">&#10003; Publish</button>
+    <button class="btn publish-btn" style="margin-left:auto;" onclick="publishCanvas()">&#10003; Publish</button>
 </div>
 
 <!-- ── Align bar (shown on multi-select) ── -->
@@ -336,6 +408,49 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <div style="font-size:11px; color:#bdc3c7; margin-top:4px;">MP4, WebM, OGV — max 50 MB</div>
     </div>
 
+    <!-- Carousel editor -->
+    <div id="insp-carousel" class="insp-section" style="display:none;">
+        <label>Carousel</label>
+        <div class="insp-row">
+            <div>
+                <label>Interval (sec)</label>
+                <input type="number" id="carousel-interval" min="1" max="60" value="5"
+                       style="width:70px;" oninput="updateCarouselInterval(this.value)">
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <button class="btn" style="font-size:12px;padding:5px 10px;" onclick="openCarouselModal()">Edit Slides</button>
+            </div>
+        </div>
+        <div id="carousel-slide-count" style="font-size:11px;color:#bdc3c7;margin-top:4px;"></div>
+    </div>
+
+    <!-- Marquee editor -->
+    <div id="insp-marquee" class="insp-section" style="display:none;">
+        <label>Marquee Text</label>
+        <textarea id="marquee-text" rows="3"
+                  style="width:100%;padding:6px;background:#2c3e50;color:#fff;border:1px solid #4a6278;border-radius:3px;font-size:13px;resize:vertical;"
+                  oninput="updateMarqueeText(this.value)"></textarea>
+        <label style="margin-top:6px;">Scroll Speed</label>
+        <input type="range" id="marquee-speed" min="10" max="300" value="80"
+               style="width:100%;margin-top:4px;" oninput="updateMarqueeSpeed(this.value)">
+        <div id="marquee-speed-label" style="font-size:11px;color:#bdc3c7;margin-top:2px;">80 px/sec</div>
+        <label style="margin-top:6px;">Text Style</label>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <input type="color" id="marquee-color" value="#ffffff"
+                   style="width:36px;height:30px;flex-shrink:0;" oninput="updateMarqueeStyle()">
+            <input type="number" id="marquee-size" value="28" min="10" max="120" placeholder="px"
+                   style="width:60px;" oninput="updateMarqueeStyle()">
+            <select id="marquee-weight" style="flex:1;" onchange="updateMarqueeStyle()">
+                <option value="normal">Normal</option>
+                <option value="bold" selected>Bold</option>
+            </select>
+        </div>
+        <label style="margin-top:6px;">Background Color</label>
+        <input type="color" id="marquee-bg" value="#c0392b"
+               style="width:60px;height:30px;margin-top:4px;" oninput="updateMarqueeStyle()">
+    </div>
+
     <!-- DB Asset link -->
     <div id="insp-asset" class="insp-section">
         <label>Link DB Asset</label>
@@ -381,6 +496,20 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 </div>
 <?php endif; ?>
 
+<!-- ── Carousel Slide Editor Modal ── -->
+<div id="carousel-modal-overlay">
+    <div id="carousel-modal">
+        <h2>Edit Carousel Slides</h2>
+        <p>Add slides with an image, title, price, and description. They cycle automatically on the display.</p>
+        <div id="carousel-slides-list"></div>
+        <button class="btn" style="margin-top:10px;font-size:12px;" onclick="addSlideRow()">+ Add Slide</button>
+        <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="btn green" onclick="saveCarouselSlides()">Save Slides</button>
+            <button class="btn gray"  onclick="closeCarouselModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -400,6 +529,8 @@ var BLOCK_DEFAULTS = {
     video:          { w:400, h:225 },
     free:           { w:320, h:80  },
     section:        { w:600, h:380 },
+    carousel:       { w:480, h:320 },
+    marquee:        { w:1920, h:60  },
 };
 
 var FONT_FAMILIES = ['Arial','Georgia','Verdana','Tahoma',
@@ -631,6 +762,16 @@ function renderBlock(el, parent) {
         vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
         if (content) { var src = document.createElement('source'); src.src = content; vid.appendChild(src); }
         block.appendChild(vid);
+    } else if (el.type === 'carousel') {
+        var cdata = {};
+        try { cdata = JSON.parse(content || '{}'); } catch(e) {}
+        block.dataset.carouselData = JSON.stringify(cdata);
+        buildCarouselPreview(block, cdata);
+    } else if (el.type === 'marquee') {
+        var mdata = {};
+        try { mdata = JSON.parse(content || '{}'); } catch(e) {}
+        block.dataset.marqueeData = JSON.stringify(mdata);
+        buildMarqueePreview(block, mdata);
     }
 
     if (el.locked) appendLockIcon(block);
@@ -733,8 +874,34 @@ function showInspector(block) {
     // Video upload – admin only
     document.getElementById('insp-video').style.display = (IS_ADMIN && type==='video') ? 'block' : 'none';
 
-    // Asset link – non-section
-    document.getElementById('insp-asset').style.display = isSection ? 'none' : 'block';
+    // Carousel inspector
+    document.getElementById('insp-carousel').style.display = (type==='carousel') ? 'block' : 'none';
+    if (type === 'carousel') {
+        var cd = {};
+        try { cd = JSON.parse(block.dataset.carouselData || '{}'); } catch(e) {}
+        document.getElementById('carousel-interval').value = ((cd.interval || 5000) / 1000);
+        var sl = (cd.slides || []).length;
+        document.getElementById('carousel-slide-count').textContent =
+            sl + ' slide' + (sl !== 1 ? 's' : '') + ' — click Edit Slides to manage';
+    }
+
+    // Marquee inspector
+    document.getElementById('insp-marquee').style.display = (type==='marquee') ? 'block' : 'none';
+    if (type === 'marquee') {
+        var md = {};
+        try { md = JSON.parse(block.dataset.marqueeData || '{}'); } catch(e) {}
+        document.getElementById('marquee-text').value          = md.text   || '';
+        document.getElementById('marquee-speed').value         = md.speed  || 80;
+        document.getElementById('marquee-speed-label').textContent = (md.speed || 80) + ' px/sec';
+        document.getElementById('marquee-color').value         = md.color  || '#ffffff';
+        document.getElementById('marquee-size').value          = md.size   || 28;
+        document.getElementById('marquee-weight').value        = md.weight || 'bold';
+        document.getElementById('marquee-bg').value            = md.bg     || '#c0392b';
+    }
+
+    // Asset link – non-section, non-carousel, non-marquee
+    var hideAsset = isSection || type === 'carousel' || type === 'marquee';
+    document.getElementById('insp-asset').style.display = hideAsset ? 'none' : 'block';
     document.getElementById('asset-link').value = block.dataset.assetId || '';
 
     // Lock toggle
@@ -1054,6 +1221,12 @@ function publishCanvas() {
                 var _inner = block.querySelector('.text-inner');
                 manual   = _inner ? _inner.innerHTML : '';
                 savePool = true;
+            } else if (type === 'carousel') {
+                manual   = block.dataset.carouselData || '{}';
+                savePool = false;
+            } else if (type === 'marquee') {
+                manual   = block.dataset.marqueeData || '{}';
+                savePool = false;
             } else {
                 manual   = block.dataset.manualPath || (block.querySelector('img,video source') || {}).src || '';
                 savePool = !!block.dataset.manualPath;
@@ -1284,6 +1457,181 @@ function showToast(msg, isErr) {
     t.style.display = 'block';
     clearTimeout(t._tid);
     t._tid = setTimeout(function(){ t.style.display='none'; }, 3500);
+}
+
+// ============================================================
+// CAROUSEL PREVIEW + MODAL
+// ============================================================
+function buildCarouselPreview(block, data) {
+    block.innerHTML = '';
+    var slides   = (data && data.slides) || [];
+    var preview  = document.createElement('div');
+    preview.className = 'carousel-preview';
+    if (slides.length > 0 && slides[0].image) {
+        var img = document.createElement('img');
+        img.src = slides[0].image;
+        preview.appendChild(img);
+    }
+    var lbl = document.createElement('div');
+    lbl.className = 'carousel-preview-lbl';
+    lbl.textContent = '↻ Carousel — ' + slides.length + ' slide' + (slides.length !== 1 ? 's' : '');
+    preview.appendChild(lbl);
+    block.appendChild(preview);
+}
+
+function openCarouselModal() {
+    if (!activeBlock || activeBlock.dataset.type !== 'carousel') return;
+    var cd = {};
+    try { cd = JSON.parse(activeBlock.dataset.carouselData || '{}'); } catch(e) {}
+    var list = document.getElementById('carousel-slides-list');
+    list.innerHTML = '';
+    var slides = cd.slides || [];
+    if (slides.length === 0) { addSlideRow(); } else { slides.forEach(function(s){ addSlideRow(s); }); }
+    document.getElementById('carousel-modal-overlay').classList.add('open');
+}
+
+function closeCarouselModal() {
+    document.getElementById('carousel-modal-overlay').classList.remove('open');
+}
+
+function addSlideRow(data) {
+    data = data || {};
+    var list = document.getElementById('carousel-slides-list');
+    var n    = list.children.length + 1;
+    var div  = document.createElement('div');
+    div.className = 'slide-row';
+    var imgVal  = escHtml(data.image       || '');
+    var imgHtml = data.image
+        ? '<img src="'+escHtml(data.image)+'" style="max-width:100%;max-height:60px;object-fit:contain;">'
+        : 'No image';
+    div.innerHTML =
+        '<div class="slide-header">Slide ' + n +
+            ' <button class="btn danger" style="font-size:11px;padding:3px 8px;" onclick="removeSlideRow(this)">Remove</button>' +
+        '</div>' +
+        '<div class="slide-fields">' +
+            '<div class="slide-field">' +
+                '<label>Image</label>' +
+                '<div class="slide-img-preview">' + imgHtml + '</div>' +
+                '<input type="file" accept="image/*" onchange="uploadSlideImage(this)" style="font-size:12px;color:#aaa;">' +
+                '<input type="hidden" class="slide-img-path" value="' + imgVal + '">' +
+            '</div>' +
+            '<div class="slide-field">' +
+                '<label>Title</label>' +
+                '<input type="text" class="slide-title" value="' + escHtml(data.title || '') + '">' +
+                '<label style="margin-top:6px;">Price</label>' +
+                '<input type="text" class="slide-price" value="' + escHtml(data.price || '') + '">' +
+            '</div>' +
+            '<div class="slide-field" style="grid-column:1/-1;">' +
+                '<label>Description</label>' +
+                '<textarea class="slide-desc" rows="2">' + escHtml(data.description || '') + '</textarea>' +
+            '</div>' +
+        '</div>';
+    list.appendChild(div);
+}
+
+function removeSlideRow(btn) {
+    var row = btn.closest('.slide-row');
+    if (row) row.remove();
+    document.querySelectorAll('#carousel-slides-list .slide-row').forEach(function(r, i) {
+        var h = r.querySelector('.slide-header');
+        if (h) h.firstChild.textContent = 'Slide ' + (i + 1) + ' ';
+    });
+}
+
+function uploadSlideImage(input) {
+    if (!input.files[0]) return;
+    var row = input.closest('.slide-row');
+    var fd  = new FormData();
+    fd.append('file', input.files[0]);
+    fetch('api.php?action=upload_file', {method:'POST', body:fd})
+        .then(function(r){ return r.json(); })
+        .then(function(res) {
+            if (res.status === 'success') {
+                var pi = row.querySelector('.slide-img-path');
+                if (pi) pi.value = res.path;
+                var pv = row.querySelector('.slide-img-preview');
+                if (pv) pv.innerHTML = '<img src="'+escHtml(res.path)+'" style="max-width:100%;max-height:60px;object-fit:contain;">';
+            } else { showToast(res.message || 'Upload failed.', true); }
+        }).catch(function(){ showToast('Upload failed.', true); });
+}
+
+function saveCarouselSlides() {
+    if (!activeBlock) return;
+    var rows   = document.querySelectorAll('#carousel-slides-list .slide-row');
+    var slides = [];
+    rows.forEach(function(row) {
+        slides.push({
+            image:       (row.querySelector('.slide-img-path') || {}).value || '',
+            title:       (row.querySelector('.slide-title')    || {}).value || '',
+            price:       (row.querySelector('.slide-price')    || {}).value || '',
+            description: (row.querySelector('.slide-desc')     || {}).value || '',
+        });
+    });
+    var interval = Math.max(1, parseFloat(document.getElementById('carousel-interval').value || 5)) * 1000;
+    var cd = { interval: interval, slides: slides };
+    activeBlock.dataset.carouselData = JSON.stringify(cd);
+    buildCarouselPreview(activeBlock, cd);
+    var sl = slides.length;
+    document.getElementById('carousel-slide-count').textContent =
+        sl + ' slide' + (sl !== 1 ? 's' : '') + ' — click Edit Slides to manage';
+    closeCarouselModal();
+    showToast('Slides saved. Remember to Publish.');
+}
+
+function updateCarouselInterval(val) {
+    if (!activeBlock || activeBlock.dataset.type !== 'carousel') return;
+    var cd = {};
+    try { cd = JSON.parse(activeBlock.dataset.carouselData || '{}'); } catch(e) {}
+    cd.interval = Math.max(1, parseFloat(val || 5)) * 1000;
+    activeBlock.dataset.carouselData = JSON.stringify(cd);
+}
+
+// ============================================================
+// MARQUEE PREVIEW + INSPECTOR UPDATES
+// ============================================================
+function buildMarqueePreview(block, data) {
+    block.innerHTML = '';
+    var d      = data || {};
+    var text   = d.text   || 'Marquee text — click to edit in inspector';
+    var color  = d.color  || '#ffffff';
+    var size   = d.size   || 28;
+    var weight = d.weight || 'bold';
+    var bg     = d.bg     || '#c0392b';
+    block.style.background = bg;
+    var inner = document.createElement('div');
+    inner.className  = 'marquee-preview';
+    inner.style.color      = color;
+    inner.style.fontSize   = size + 'px';
+    inner.style.fontWeight = weight;
+    inner.textContent = '▶ ' + text;
+    block.appendChild(inner);
+}
+
+function updateMarqueeText(val) {
+    if (!activeBlock || activeBlock.dataset.type !== 'marquee') return;
+    var md = {}; try { md = JSON.parse(activeBlock.dataset.marqueeData || '{}'); } catch(e) {}
+    md.text = val;
+    activeBlock.dataset.marqueeData = JSON.stringify(md);
+    buildMarqueePreview(activeBlock, md);
+}
+
+function updateMarqueeSpeed(val) {
+    if (!activeBlock || activeBlock.dataset.type !== 'marquee') return;
+    document.getElementById('marquee-speed-label').textContent = val + ' px/sec';
+    var md = {}; try { md = JSON.parse(activeBlock.dataset.marqueeData || '{}'); } catch(e) {}
+    md.speed = parseInt(val);
+    activeBlock.dataset.marqueeData = JSON.stringify(md);
+}
+
+function updateMarqueeStyle() {
+    if (!activeBlock || activeBlock.dataset.type !== 'marquee') return;
+    var md = {}; try { md = JSON.parse(activeBlock.dataset.marqueeData || '{}'); } catch(e) {}
+    md.color  = document.getElementById('marquee-color').value;
+    md.size   = parseInt(document.getElementById('marquee-size').value)   || 28;
+    md.weight = document.getElementById('marquee-weight').value;
+    md.bg     = document.getElementById('marquee-bg').value;
+    activeBlock.dataset.marqueeData = JSON.stringify(md);
+    buildMarqueePreview(activeBlock, md);
 }
 </script>
 </body>

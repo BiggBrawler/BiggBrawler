@@ -1,5 +1,5 @@
 -- ============================================================
--- DISPLAY SYSTEM – Full Database Schema v2
+-- DISPLAY SYSTEM – Full Database Schema v3
 -- Run this file once via phpMyAdmin or MySQL CLI.
 -- ============================================================
 
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `canvas_settings` (
 CREATE TABLE IF NOT EXISTS `canvas_elements` (
   `id`             INT AUTO_INCREMENT PRIMARY KEY,
   `section_id`     INT   NULL     COMMENT 'Parent section ID; NULL = root level',
-  `type`           ENUM('section','text','image','video') NOT NULL,
+  `type`           ENUM('section','text','image','video','carousel','marquee') NOT NULL,
   `block_subtype`  ENUM('free','section_header','item_title','price','description') DEFAULT 'free',
   `x_pos`          INT          NOT NULL DEFAULT 0,
   `y_pos`          INT          NOT NULL DEFAULT 0,
@@ -97,4 +97,9 @@ ON DUPLICATE KEY UPDATE block_type = block_type;
 -- ============================================================
 -- After running this schema, visit setup.php in your browser
 -- to create your first admin account.
+-- ============================================================
+-- Upgrading from v2? Run this ALTER on an existing database:
+-- ALTER TABLE `canvas_elements`
+--   MODIFY COLUMN `type`
+--   ENUM('section','text','image','video','carousel','marquee') NOT NULL;
 -- ============================================================
