@@ -223,9 +223,9 @@ table.fit-table td:first-child { color: #fff; font-weight: 600; white-space: now
     <h3>Admin</h3>
     <ul>
         <li>Create and move <strong>Sections</strong> (the purple-bordered layout containers)</li>
-        <li>Add any block type: Free Text, Image, Video, Carousel, Marquee</li>
+        <li>Add any block type: Image, Carousel, Marquee, Video</li>
         <li>Edit font styles, block dimensions, canvas background</li>
-        <li>Manage Brand Standards (global font/color styles for branded blocks)</li>
+        <li>Manage Brand Standards via the Branding page (global font/color styles for branded blocks)</li>
         <li>Delete blocks, manage users, configure store branding</li>
         <li>Publish the layout to the display</li>
     </ul>
@@ -314,7 +314,7 @@ table.fit-table td:first-child { color: #fff; font-weight: 600; white-space: now
 
     <h3>Admin-only block types</h3>
     <ul>
-        <li><strong>+ Free Text</strong> — Fully editable text with font controls (admin WYSIWYG)</li>
+        <li><strong>+ Image</strong> — Image block with fit-mode options</li>
         <li><strong>+ Video</strong> — Auto-playing looped video (MP4, WebM, OGV — max 50 MB)</li>
         <li><strong>+ Carousel</strong> — Slideshow of images with optional titles/prices</li>
         <li><strong>+ Marquee</strong> — Scrolling ticker text across the bottom or anywhere</li>
@@ -359,13 +359,6 @@ table.fit-table td:first-child { color: #fff; font-weight: 600; white-space: now
         <li><strong>Link DB Asset</strong> — link the block to a saved entry in the Asset Library so updates to the asset reflect everywhere it is used</li>
         <li><strong>Lock toggle</strong> — prevents accidental drags/resizes; locked blocks show a 🔒 icon</li>
         <li><strong>Delete Block</strong> — removes the block from the canvas (cannot be undone until the next Publish)</li>
-    </ul>
-
-    <h3>Text blocks (Free Text — admin only)</h3>
-    <ul>
-        <li><strong>Formatting bar</strong> — Bold, Italic, Underline, Strikethrough, and text alignment (left / centre / right)</li>
-        <li><strong>Font</strong> — family, size (px), colour, weight, and line height</li>
-        <li>Double-click the block on the canvas to place the text cursor and type directly</li>
     </ul>
 
     <h3>Branded text blocks (Section Header / Item Title / Price / Description)</h3>
@@ -482,11 +475,8 @@ table.fit-table td:first-child { color: #fff; font-weight: 600; white-space: now
     <h2>Text Blocks</h2>
     <a href="#" class="back-top">↑ Top</a>
 
-    <h3>Free Text (admin only)</h3>
-    <p>Fully customisable text with no style restrictions. Double-click to open the text cursor. Use the WYSIWYG bar in the Inspector for bold, italic, underline, strikethrough, and text alignment. Font family, size, colour, weight, and line height are all adjustable in the Inspector.</p>
-
     <h3>Branded Text Blocks</h3>
-    <p>These four types use store-wide font and colour settings defined in Brand Standards:</p>
+    <p>These four types use store-wide font and colour settings defined in Brand Standards (set on the Branding page):</p>
     <ul>
         <li><strong>Section Header</strong> — Large heading. Default: Arial 36px bold white.</li>
         <li><strong>Item Title</strong> — Product name. Default: Arial 24px bold light-grey.</li>
@@ -634,13 +624,13 @@ table.fit-table td:first-child { color: #fff; font-weight: 600; white-space: now
 
     <h3>Changing brand styles</h3>
     <ol class="steps">
-        <li><span>Click <strong>Brand Standards</strong> in the builder control bar.</span></li>
+        <li><span>Go to <strong>Branding</strong> (top nav → Branding) and scroll to the Brand Standards section.</span></li>
         <li><span>A table shows each block type's current settings. Edit any field.</span></li>
-        <li><span>Click <strong>Save Brand Standards</strong>. All branded blocks on the canvas update instantly.</span></li>
-        <li><span>Publish to make the changes live on the display.</span></li>
+        <li><span>Click <strong>Save Brand Standards</strong>. Changes take effect on the next publish.</span></li>
+        <li><span>Return to the builder and publish to make the changes live on the display.</span></li>
     </ol>
 
-    <div class="note"><strong>Note:</strong> Brand Standards only affect <em>branded</em> text blocks (Section Header, Item Title, Price, Description). Free Text blocks are not affected.</div>
+    <div class="note"><strong>Note:</strong> Brand Standards only affect <em>branded</em> text blocks (Section Header, Item Title, Price, Description).</div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════ -->

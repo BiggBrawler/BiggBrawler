@@ -226,7 +226,37 @@ $curText    = defined('BRAND_TEXT')       ? BRAND_TEXT       : '#ffffff';
         <button type="submit" name="save_branding" class="btn btn-primary">Save Branding</button>
         <a href="builder.php" class="btn btn-back">Cancel</a>
     </form>
+
+    <!-- ── Brand Standards ── -->
+    <div style="margin-top:32px;">
+        <h1 style="font-size:22px; margin-bottom:6px;">Brand Standards</h1>
+        <p class="subtitle">Font styles applied to typed text blocks (Section Header, Item Title, Price, Description). These are locked for basic users.</p>
+
+        <div class="card" style="overflow-x:auto;">
+            <h2>Text Block Styles</h2>
+            <table class="bm-table" id="bm-table" style="min-width:600px;">
+                <thead><tr>
+                    <th>Type</th><th>Font</th><th>Size (px)</th><th>Color</th>
+                    <th>Weight</th><th>Style</th><th>Line Height</th>
+                </tr></thead>
+                <tbody id="bm-tbody"></tbody>
+            </table>
+        </div>
+        <button class="btn btn-primary" onclick="saveBrandStandards()">Save Brand Standards</button>
+    </div>
 </div>
+
+<style>
+.bm-table { width:100%; border-collapse:collapse; font-size:13px; }
+.bm-table th, .bm-table td { padding:9px 8px; border-bottom:1px solid #2c3e50; }
+.bm-table th { color:#bdc3c7; font-weight:600; text-align:left; }
+.bm-table input, .bm-table select {
+    background:#1a252f; border:1px solid #34495e; color:#fff;
+    padding:5px 7px; border-radius:3px; font-size:12px;
+}
+.bm-table input[type="color"] { width:44px; height:28px; padding:1px; cursor:pointer; border:1px solid #34495e; }
+.bm-table input[type="number"] { width:64px; }
+</style>
 
 <script>
 function livePreview() {
@@ -256,6 +286,71 @@ function previewLogo(input) {
     };
     reader.readAsDataURL(input.files[0]);
 }
+
+// ── Brand Standards ────────────────────────────────────────
+var _brandStyles = {};
+
+function loadBrandStandards() {
+    fetch('api.php?action=get_layout')
+        .then(function(r){ return r.json(); })
+        .then(function(data) {
+            _brandStyles = data.block_styles || {};
+            renderBrandTable(_brandStyles);
+        });
+}
+
+function renderBrandTable(styles) {
+    var tbody  = document.getElementById('bm-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    var types  = ['section_header','item_title','price','description'];
+    var labels = {section_header:'Section Header', item_title:'Item Title', price:'Price', description:'Description'};
+    var fonts  = ['Arial','Georgia','Verdana','Tahoma','Times New Roman','Courier New','Impact'];
+    types.forEach(function(t) {
+        var s   = styles[t] || {};
+        var row = document.createElement('tr');
+        row.innerHTML =
+            '<td><strong>' + labels[t] + '</strong></td>' +
+            '<td><select id="bm_'+t+'_family">' + fonts.map(function(f){
+                return '<option value="'+f+'"'+(s.font_family===f?' selected':'')+'>'+f+'</option>';
+            }).join('') + '</select></td>' +
+            '<td><input type="number" id="bm_'+t+'_size" value="'+(s.font_size||16)+'" min="8" max="300" style="width:60px;"></td>' +
+            '<td><input type="color"  id="bm_'+t+'_color" value="'+(s.font_color||'#000000')+'"></td>' +
+            '<td><select id="bm_'+t+'_weight"><option value="normal"'+(s.font_weight==='normal'?' selected':'')+'>Normal</option><option value="bold"'+(s.font_weight==='bold'?' selected':'')+'>Bold</option></select></td>' +
+            '<td><select id="bm_'+t+'_style"><option value="normal"'+(s.font_style==='normal'?' selected':'')+'>Normal</option><option value="italic"'+(s.font_style==='italic'?' selected':'')+'>Italic</option></select></td>' +
+            '<td><input type="number" id="bm_'+t+'_lh" value="'+(s.line_height||1.4)+'" min="0.8" max="4" step="0.1" style="width:60px;"></td>';
+        tbody.appendChild(row);
+    });
+}
+
+function saveBrandStandards() {
+    var types  = ['section_header','item_title','price','description'];
+    var styles = {};
+    types.forEach(function(t) {
+        styles[t] = {
+            font_family: document.getElementById('bm_'+t+'_family').value,
+            font_size:   parseInt(document.getElementById('bm_'+t+'_size').value),
+            font_color:  document.getElementById('bm_'+t+'_color').value,
+            font_weight: document.getElementById('bm_'+t+'_weight').value,
+            font_style:  document.getElementById('bm_'+t+'_style').value,
+            line_height: parseFloat(document.getElementById('bm_'+t+'_lh').value),
+        };
+    });
+    var fd = new FormData();
+    fd.append('styles_data', JSON.stringify(styles));
+    fetch('api.php?action=save_brand_styles', {method:'POST', body:fd})
+        .then(function(r){ return r.json(); })
+        .then(function(res) {
+            if (res.status === 'success') {
+                _brandStyles = styles;
+                alert('Brand standards saved.');
+            } else {
+                alert('Save failed: ' + (res.message || 'unknown error'));
+            }
+        });
+}
+
+document.addEventListener('DOMContentLoaded', loadBrandStandards);
 </script>
 </body>
 </html>

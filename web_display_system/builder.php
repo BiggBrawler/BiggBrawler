@@ -218,28 +218,6 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 }
 .slide-img-preview img { max-width:100%; max-height:60px; object-fit:contain; }
 
-/* ── Brand Standards Modal (admin) ── */
-#brand-modal-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
-    z-index: 500; align-items: center; justify-content: center;
-}
-#brand-modal-overlay.open { display: flex; }
-#brand-modal {
-    background: #1a252f; border-radius: 8px; padding: 24px; width: 700px; max-width: 95vw;
-    max-height: 90vh; overflow-y: auto; border: 1px solid #34495e;
-}
-#brand-modal h2 { font-size: 16px; margin-bottom: 4px; }
-#brand-modal p  { font-size: 12px; color: #bdc3c7; margin-bottom: 16px; }
-.bm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.bm-table th, .bm-table td { padding: 8px; border-bottom: 1px solid #2c3e50; }
-.bm-table th { color: #bdc3c7; font-weight: 600; text-align: left; }
-.bm-table input, .bm-table select {
-    background: #2c3e50; border: 1px solid #34495e; color: #fff;
-    padding: 5px 7px; border-radius: 3px; font-size: 12px;
-}
-.bm-table input[type="color"] { width: 44px; height: 28px; padding: 1px; cursor: pointer; }
-.bm-table input[type="number"] { width: 64px; }
-
 /* ── Toast ── */
 #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -277,10 +255,10 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 <div id="control-bar">
     <?php if ($isAdmin): ?>
         <button class="btn purple" onclick="createSection()">+ Section</button>
-        <button class="btn"        onclick="createBlock('text','free')">+ Free Text</button>
-        <button class="btn"        onclick="createBlock('video',null)">+ Video</button>
+        <button class="btn"        onclick="createBlock('image',null)">+ Image</button>
         <button class="btn"        onclick="createBlock('carousel',null)">+ Carousel</button>
         <button class="btn orange" onclick="createBlock('marquee',null)">+ Marquee</button>
+        <button class="btn"        onclick="createBlock('video',null)">+ Video</button>
         <div class="sep"></div>
     <?php endif; ?>
 
@@ -288,7 +266,6 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <button class="btn orange" onclick="createBlock('text','item_title')">+ Item Title</button>
     <button class="btn orange" onclick="createBlock('text','price')">+ Price</button>
     <button class="btn orange" onclick="createBlock('text','description')">+ Description</button>
-    <button class="btn"        onclick="createBlock('image',null)">+ Image</button>
 
     <?php if ($isAdmin): ?>
     <div class="sep"></div>
@@ -301,8 +278,6 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
            style="width:40px; height:30px; padding:2px; border:none; cursor:pointer; border-radius:3px;">
     <input type="file"  id="bg-file"  accept="image/*" onchange="applyBgFile()"
            style="display:none; font-size:11px; color:#aaa;">
-    <div class="sep"></div>
-    <button class="btn purple" onclick="openBrandModal()">Brand Standards</button>
     <?php endif; ?>
 
     <button class="btn publish-btn" style="margin-left:auto;" onclick="publishCanvas()">&#10003; Publish</button>
@@ -522,27 +497,6 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     </div>
 </div>
 
-<!-- ── Brand Standards Modal (admin only) ── -->
-<?php if ($isAdmin): ?>
-<div id="brand-modal-overlay">
-    <div id="brand-modal">
-        <h2>Brand Standards</h2>
-        <p>These styles are locked for basic users. Changes are saved to the database.</p>
-        <table class="bm-table">
-            <thead><tr>
-                <th>Type</th><th>Font</th><th>Size</th><th>Color</th>
-                <th>Weight</th><th>Style</th><th>Line H</th>
-            </tr></thead>
-            <tbody id="bm-tbody"></tbody>
-        </table>
-        <div style="margin-top:16px; display:flex; gap:10px;">
-            <button class="btn green" onclick="saveBrandStandards()">Save to Database</button>
-            <button class="btn gray"  onclick="closeBrandModal()">Cancel</button>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
-
 <!-- ── Carousel Slide Editor Modal ── -->
 <div id="carousel-modal-overlay">
     <div id="carousel-modal">
@@ -594,6 +548,7 @@ var TYPE_LABELS = {
 // ============================================================
 var activeBlock    = null;   // single selected block
 var multiSel       = [];     // multi-selection array
+var _shiftDown     = false;  // tracks Shift key for interact.js drag guard
 var targetSection  = null;   // section targeted for adding (basic users + admin)
 var savedRange     = null;   // preserved text selection for WYSIWYG
 var assetsCache    = [];
@@ -829,7 +784,7 @@ function renderBlock(el, parent) {
     if (el.locked) appendLockIcon(block);
 
     block.addEventListener('mousedown', function(e) {
-        if (e.target.closest('.text-inner')) return; // let text-inner handle its own focus
+        if (!e.shiftKey && e.target.closest('.text-inner')) return; // let text-inner handle its own focus (but shift+click still multi-selects)
         if (e.shiftKey) {
             toggleMultiSel(block);
         } else {
@@ -1109,6 +1064,8 @@ function setupCanvas() {
         clearTargetSection();
     });
     document.addEventListener('selectionchange', trackSelection);
+    document.addEventListener('keydown', function(e) { if (e.key === 'Shift') _shiftDown = true;  });
+    document.addEventListener('keyup',   function(e) { if (e.key === 'Shift') _shiftDown = false; });
 }
 
 // ============================================================
@@ -1346,78 +1303,6 @@ function publishCanvas() {
 }
 
 // ============================================================
-// BRAND STANDARDS MODAL (admin)
-// ============================================================
-function openBrandModal() {
-    if (!IS_ADMIN) return;
-    var tbody = document.getElementById('bm-tbody');
-    tbody.innerHTML = '';
-    var types = ['section_header','item_title','price','description'];
-    var labels = {section_header:'Section Header',item_title:'Item Title',price:'Price',description:'Description'};
-    var fonts  = ['Arial','Georgia','Verdana','Tahoma','Times New Roman','Courier New','Impact'];
-    types.forEach(function(t) {
-        var s = blockStyles[t] || {};
-        var row = document.createElement('tr');
-        row.innerHTML =
-            '<td><strong>'+escHtml(labels[t])+'</strong></td>' +
-            '<td><select id="bm_'+t+'_family">' + fonts.map(function(f){
-                return '<option value="'+f+'"'+(s.font_family===f?' selected':'')+'>'+f+'</option>';
-            }).join('') + '</select></td>' +
-            '<td><input type="number" id="bm_'+t+'_size" value="'+(s.font_size||16)+'" min="8" max="300" style="width:60px;"></td>' +
-            '<td><input type="color" id="bm_'+t+'_color" value="'+(s.font_color||'#000000')+'"></td>' +
-            '<td><select id="bm_'+t+'_weight"><option value="normal"'+(s.font_weight==='normal'?' selected':'')+'>Normal</option><option value="bold"'+(s.font_weight==='bold'?' selected':'')+'>Bold</option></select></td>' +
-            '<td><select id="bm_'+t+'_style"><option value="normal"'+(s.font_style==='normal'?' selected':'')+'>Normal</option><option value="italic"'+(s.font_style==='italic'?' selected':'')+'>Italic</option></select></td>' +
-            '<td><input type="number" id="bm_'+t+'_lh" value="'+(s.line_height||1.4)+'" min="0.8" max="4" step="0.1" style="width:60px;"></td>';
-        tbody.appendChild(row);
-    });
-    document.getElementById('brand-modal-overlay').classList.add('open');
-}
-
-function closeBrandModal() {
-    document.getElementById('brand-modal-overlay').classList.remove('open');
-}
-
-function saveBrandStandards() {
-    var types = ['section_header','item_title','price','description'];
-    var fd    = new FormData();
-    var styles = {};
-    types.forEach(function(t) {
-        styles[t] = {
-            font_family: document.getElementById('bm_'+t+'_family').value,
-            font_size:   parseInt(document.getElementById('bm_'+t+'_size').value),
-            font_color:  document.getElementById('bm_'+t+'_color').value,
-            font_weight: document.getElementById('bm_'+t+'_weight').value,
-            font_style:  document.getElementById('bm_'+t+'_style').value,
-            line_height: parseFloat(document.getElementById('bm_'+t+'_lh').value),
-        };
-    });
-    fd.append('styles_data', JSON.stringify(styles));
-
-    fetch('api.php?action=save_brand_styles', {method:'POST', body:fd})
-        .then(function(r){ return r.json(); })
-        .then(function(res) {
-            if (res.status === 'success') {
-                blockStyles = styles;
-                // Re-apply brand styles to all typed blocks on canvas
-                document.querySelectorAll('.editable-block[data-subtype]').forEach(function(b) {
-                    var sub = b.dataset.subtype;
-                    if (sub && sub !== 'free' && styles[sub]) {
-                        var bs = styles[sub];
-                        b.style.fontFamily  = bs.font_family;
-                        b.style.fontSize    = bs.font_size + 'px';
-                        b.style.color       = bs.font_color;
-                        b.style.fontWeight  = bs.font_weight;
-                        b.style.fontStyle   = bs.font_style;
-                        b.style.lineHeight  = bs.line_height;
-                    }
-                });
-                showToast('Brand standards saved.');
-                closeBrandModal();
-            } else { showToast(res.message||'Save failed.', true); }
-        });
-}
-
-// ============================================================
 // INTERACT.JS – drag, resize, bounds
 // ============================================================
 function setupInteract() {
@@ -1426,7 +1311,7 @@ function setupInteract() {
     if (IS_ADMIN) {
         // Sections: drag + resize, constrained to canvas
         interact('.section-block').draggable({
-            listeners: { move: handleMove },
+            listeners: { start: function(e) { if (_shiftDown) e.interaction.stop(); }, move: handleMove },
             modifiers: [interact.modifiers.restrictRect({restriction: canvas})],
             ignoreFrom: '.editable-block',
         }).resizable({
@@ -1437,7 +1322,7 @@ function setupInteract() {
 
         // Root blocks: drag + resize, constrained to canvas
         interact('.root-block').draggable({
-            listeners: { move: handleMove },
+            listeners: { start: function(e) { if (_shiftDown) e.interaction.stop(); }, move: handleMove },
             modifiers: [interact.modifiers.restrictRect({restriction: canvas})]
         }).resizable({
             edges: {left:true, right:true, bottom:true, top:true},
@@ -1448,6 +1333,7 @@ function setupInteract() {
     // Child blocks: drag constrained to parent section; resize for admin
     var childInteract = interact('.child-block').draggable({
         listeners: {
+            start: function(e) { if (_shiftDown) e.interaction.stop(); },
             move: function(event) {
                 if (event.target.dataset.locked === '1') return;
                 handleMove(event);
