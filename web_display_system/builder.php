@@ -88,7 +88,9 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 .editable-block {
     position: absolute; min-width: 40px; min-height: 24px;
     cursor: default; touch-action: none;
+    outline: 1px dashed rgba(255,255,255,0.28);
 }
+.editable-block:hover:not(.selected):not(.multi-sel) { outline: 1px dashed rgba(255,255,255,0.6); }
 .editable-block.draggable-block { cursor: move; }
 .editable-block.selected  { outline: 2px solid #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,.5); }
 .editable-block.multi-sel { outline: 2px solid #f39c12; box-shadow: 0 0 6px rgba(243,156,18,.4); }
