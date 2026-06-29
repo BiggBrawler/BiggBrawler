@@ -1,0 +1,571 @@
+================================================================
+  STORE DISPLAY SYSTEM — COMPLETE SETUP & SECURITY GUIDE
+================================================================
+Version: 1.0   |   Last updated: June 2026
+================================================================
+
+
+TABLE OF CONTENTS
+-----------------
+  1.  System Requirements
+  2.  File Overview
+  3.  Step 1 — Create the Database
+  4.  Step 2 — Create the Credentials File (Outside Webroot)
+  5.  Step 3 — Upload Files to Your Server
+  6.  Step 4 — Set Folder Permissions
+  7.  Step 5 — Set Up the Root .htaccess
+  8.  Step 6 — Edit config.php
+  9.  Step 7 — Run First-Time Setup (setup.php)
+  10. Step 8 — Set Up Store Branding
+  11. Step 9 — Delete setup.php
+  12. Step 10 — Test the Full System
+  13. Day-to-Day Usage Guide
+  14. Security Hardening Checklist
+  15. Troubleshooting
+
+
+================================================================
+1. SYSTEM REQUIREMENTS
+================================================================
+
+  Server software:
+    - Apache 2.4+  (with mod_rewrite enabled)
+    - PHP 7.4 or 8.x
+    - MySQL 5.7+ or MariaDB 10.3+
+
+  Required PHP extensions (usually enabled by default):
+    - pdo_mysql
+    - fileinfo  (for mime_content_type())
+    - session
+    - openssl   (for random_bytes())
+
+  Disk space:
+    - At least 200 MB free for uploaded images and videos.
+
+  Email (for password resets):
+    - The server must be able to send mail via PHP's mail()
+      function, OR you can configure a transactional email
+      service (Mailgun, SendGrid, etc.) and point the SMTP
+      relay at it. Check with your hosting provider.
+
+
+================================================================
+2. FILE OVERVIEW
+================================================================
+
+  Files you will upload to your public webroot (public_html):
+  -----------------------------------------------------------
+  login.php           Sign-in page
+  logout.php          Destroys session and redirects to login
+  builder.php         Main layout editor (staff use this daily)
+  viewer.php          Kiosk display — open on the TV screen
+  api.php             JSON endpoint (builder and viewer use it)
+  crud.php            Asset library (upload images/text)
+  admin_panel.php     User management and brand standards
+  setup.php           First-time admin account creator (DELETE after use)
+  setup_branding.php  One-time store logo/color setup
+  auth.php            Session and CSRF helpers (not opened directly)
+  db_connect.php      Database connection (not opened directly)
+  config.php          Site name and email settings
+  branding_config.php Store logo and color constants (auto-generated)
+  schema.sql          Database tables (run once — not web-accessible)
+
+  Folder that will be created automatically on first upload:
+  -----------------------------------------------------------
+  uploads/            Where images and videos are stored
+  uploads/.htaccess   Blocks PHP execution inside uploads/ (CRITICAL)
+
+  File you will create OUTSIDE your webroot (see Step 2):
+  -----------------------------------------------------------
+  ../private/db_credentials.php   Database password (never public)
+
+
+================================================================
+3. STEP 1 — CREATE THE DATABASE
+================================================================
+
+  A. Log in to phpMyAdmin (or use MySQL command line).
+
+  B. Create a new database:
+       Name:    store_display       (or any name you prefer)
+       Charset: utf8mb4
+       Collation: utf8mb4_unicode_ci
+
+  C. Create a dedicated database user with a strong password
+     and grant it ALL PRIVILEGES on that database only.
+     Do NOT use your root MySQL account for the app.
+
+     Example (MySQL CLI):
+       CREATE DATABASE store_display CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+       CREATE USER 'display_user'@'localhost' IDENTIFIED BY 'YourStrongPassHere!';
+       GRANT ALL PRIVILEGES ON store_display.* TO 'display_user'@'localhost';
+       FLUSH PRIVILEGES;
+
+  D. Import the schema:
+     In phpMyAdmin → select your database → Import tab →
+     choose schema.sql → click Go.
+
+     OR via CLI:
+       mysql -u display_user -p store_display < schema.sql
+
+     This creates all tables and seeds the default brand styles.
+
+
+================================================================
+4. STEP 2 — CREATE THE CREDENTIALS FILE (OUTSIDE WEBROOT)
+================================================================
+
+  This is the most important security step. Database passwords
+  must NEVER be inside public_html where a misconfiguration
+  could expose them.
+
+  Find the directory ONE LEVEL ABOVE your public_html folder.
+  It is typically:
+    /home/YOUR_CPANEL_USERNAME/
+  or on a VPS:
+    /var/www/
+
+  Create this folder and file:
+
+    Folder:  /home/YOUR_CPANEL_USERNAME/private/
+    File:    /home/YOUR_CPANEL_USERNAME/private/db_credentials.php
+
+  File contents:
+  ------------------------------------------------------------------
+  <?php
+  define('DB_HOST', 'localhost');
+  define('DB_NAME', 'store_display');       // your database name
+  define('DB_USER', 'display_user');        // your database user
+  define('DB_PASS', 'YourStrongPassHere!'); // your database password
+
+  // Optional — override site name and email here too:
+  // define('MAIL_FROM',      'noreply@yourstore.com');
+  // define('MAIL_FROM_NAME', 'Your Store Name');
+  // define('SITE_NAME',      'Your Store Name');
+  ------------------------------------------------------------------
+
+  File permissions for db_credentials.php:
+    chmod 640   (owner can read/write; web server group can read;
+                 no access for anyone else)
+    chown YOUR_USER:www-data  (adjust group to match your web server)
+
+  NOTE: On shared cPanel hosting the private/ folder path is
+  usually /home/CPANEL_USER/private/ and db_connect.php already
+  looks there automatically via dirname(__DIR__).
+
+
+================================================================
+5. STEP 3 — UPLOAD FILES TO YOUR SERVER
+================================================================
+
+  Upload the following to your public_html (or a subfolder):
+
+    admin_panel.php
+    api.php
+    auth.php
+    branding_config.php
+    builder.php
+    config.php
+    crud.php
+    db_connect.php
+    login.php
+    logout.php
+    reset_password.php
+    setup.php
+    setup_branding.php
+    viewer.php
+
+  Create the uploads folder and upload its .htaccess:
+    uploads/             (create this folder — set to 755)
+    uploads/.htaccess    (upload this file — it blocks script execution)
+
+  Do NOT upload schema.sql to your webroot.
+  It is only needed for the database import step.
+
+
+================================================================
+6. STEP 4 — SET FOLDER PERMISSIONS
+================================================================
+
+  Run these from SSH or set via your FTP client / cPanel
+  File Manager:
+
+    public_html/           755
+    public_html/*.php      644
+    public_html/uploads/   755
+    public_html/uploads/.htaccess  644
+
+  The uploads/ folder needs to be writable by the web server
+  so PHP can save uploaded files. 755 is correct for most
+  setups. If uploads fail, try 775 and check your error logs.
+
+  NEVER set any .php file to 777.
+
+
+================================================================
+7. STEP 5 — SET UP THE ROOT .htaccess
+================================================================
+
+  Create a file called .htaccess in your public_html root
+  (the same folder as login.php).
+
+  Copy this content exactly:
+  ------------------------------------------------------------------
+  # ── Display System — Root .htaccess ────────────────────────────
+
+  # Enable mod_rewrite (required)
+  Options -Indexes
+  Options -MultiViews
+
+  # Block direct browser access to files that should not be opened
+  <FilesMatch "^(auth|db_connect|config|branding_config)\.php$">
+      Order allow,deny
+      Deny from all
+  </FilesMatch>
+
+  # Protect the schema file
+  <FilesMatch "\.sql$">
+      Order allow,deny
+      Deny from all
+  </FilesMatch>
+
+  # Protect .htaccess itself
+  <Files ".htaccess">
+      Order allow,deny
+      Deny from all
+  </Files>
+
+  # Security headers sent with every response
+  <IfModule mod_headers.c>
+      Header always set X-Frame-Options "SAMEORIGIN"
+      Header always set X-Content-Type-Options "nosniff"
+      Header always set X-XSS-Protection "1; mode=block"
+      Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  </IfModule>
+
+  # Hide PHP version from response headers
+  <IfModule mod_php7.c>
+      php_flag expose_php Off
+  </IfModule>
+  <IfModule mod_php8.c>
+      php_flag expose_php Off
+  </IfModule>
+
+  # Force PHP session cookies to HttpOnly (prevents JS from reading them)
+  <IfModule mod_php7.c>
+      php_flag session.cookie_httponly On
+      php_flag session.use_strict_mode On
+      php_value session.cookie_samesite "Lax"
+  </IfModule>
+  <IfModule mod_php8.c>
+      php_flag session.cookie_httponly On
+      php_flag session.use_strict_mode On
+      php_value session.cookie_samesite "Lax"
+  </IfModule>
+  ------------------------------------------------------------------
+
+  IF your site runs on HTTPS (recommended), also add:
+  ------------------------------------------------------------------
+  # Force HTTPS redirect
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Mark session cookie as Secure (HTTPS only)
+  <IfModule mod_php8.c>
+      php_flag session.cookie_secure On
+  </IfModule>
+  <IfModule mod_php7.c>
+      php_flag session.cookie_secure On
+  </IfModule>
+  ------------------------------------------------------------------
+
+
+================================================================
+8. STEP 6 — EDIT config.php
+================================================================
+
+  Open config.php and update three lines:
+
+    define('MAIL_FROM',      'noreply@yourstore.com');
+    define('MAIL_FROM_NAME', 'Your Store Name');
+    define('SITE_NAME',      'Your Store Name');
+
+  These control the site title shown on the login page and
+  the "From" address on password reset emails.
+
+  Alternatively, add these three defines to your
+  private/db_credentials.php file and they will override
+  config.php automatically (preferred — keeps everything
+  in one place).
+
+
+================================================================
+9. STEP 7 — RUN FIRST-TIME SETUP (setup.php)
+================================================================
+
+  Open a browser and go to:
+    https://yoursite.com/setup.php
+    (or https://yoursite.com/subfolder/setup.php)
+
+  Fill in:
+    - Username  (this becomes your admin login name)
+    - Email     (used for password reset emails)
+    - Password  (minimum 8 characters — use something strong)
+
+  Click "Create Admin Account".
+
+  You will see a success message. DO NOT close the page yet —
+  proceed to Step 8 first, then delete setup.php.
+
+  IMPORTANT: setup.php automatically locks itself once any
+  user exists, so a second visit is harmless. But delete it
+  anyway as a best practice.
+
+
+================================================================
+10. STEP 8 — SET UP STORE BRANDING
+================================================================
+
+  A. Sign in with the admin account you just created.
+
+  B. You will land on builder.php. Click "Branding" in the
+     top navigation bar.
+
+  C. On the Branding Setup page:
+       - Upload your store logo (PNG or SVG recommended,
+         max 2 MB). It will appear on the login page and
+         in the builder navigation bar.
+       - Pick your store colors using the color pickers.
+         A live preview shows changes before you save.
+       - Click "Save Branding".
+
+  D. The colors and logo are written to branding_config.php.
+     After this initial setup, the only way to change them is:
+       - Visit setup_branding.php again (admin only), OR
+       - Open branding_config.php directly on the server and
+         edit the constant values manually.
+
+
+================================================================
+11. STEP 9 — DELETE setup.php
+================================================================
+
+  After creating your admin account, delete setup.php from
+  the server immediately. It is a security risk if left in
+  place even though it self-locks.
+
+  Via cPanel File Manager:  select setup.php → Delete.
+  Via SSH:                  rm public_html/setup.php
+  Via FTP:                  right-click → Delete.
+
+
+================================================================
+12. STEP 10 — TEST THE FULL SYSTEM
+================================================================
+
+  Run through this checklist on the server before handing off
+  to staff:
+
+  [ ] Open yoursite.com/viewer.php in a browser — you should
+      see the display canvas (dark background, empty).
+
+  [ ] Open yoursite.com/login.php — sign in with your admin.
+
+  [ ] In builder.php, change the background color and click
+      Publish. Reload viewer.php — background should change.
+
+  [ ] In builder.php, add a section, then add a text block
+      inside it. Publish. Verify viewer shows the text.
+
+  [ ] Upload an image via Asset Library (crud.php), drag it
+      onto the canvas in builder.php, publish, verify viewer.
+
+  [ ] In Admin Panel, create a Basic User account.
+      Sign out, sign in as that Basic User.
+      Verify they can add text/image blocks but cannot:
+        - Move or resize sections
+        - Add Carousel or Marquee elements
+        - Access Admin Panel
+        - Edit or delete assets in crud.php
+
+  [ ] Test login rate limiting: enter a wrong password 5 times.
+      The 6th attempt should show a lockout message.
+
+  [ ] Test password reset: click "Forgot your password?",
+      enter your email. Check that the code email arrives.
+
+  [ ] Open viewer.php on the TV/kiosk browser. It auto-refreshes
+      every 30 seconds — any published change will appear
+      without touching the display screen.
+
+
+================================================================
+13. DAY-TO-DAY USAGE GUIDE
+================================================================
+
+  For store staff (Basic Users):
+  --------------------------------
+  1. Open yoursite.com/login.php and sign in.
+  2. Click inside a section to select it.
+  3. Use the panel on the right to add a Text, Image, or
+     Video block.
+  4. Type or upload your content.
+  5. Click "Publish" (blue button, top right).
+  6. The TV/kiosk screen updates within 30 seconds.
+
+  What Basic Users CAN do:
+    - Add, move, and resize content blocks inside sections
+    - Use assets from the Asset Library
+    - Change free-text block fonts and colors
+    - Publish layouts
+
+  What Basic Users CANNOT do:
+    - Move or resize sections (admin-locked positions)
+    - Add Carousel or Marquee elements
+    - Delete assets
+    - Access the Admin Panel
+    - Change brand standard styles
+
+  For the Admin:
+  ---------------
+  - Manage users:      Admin Panel → User Management
+  - Set brand styles:  Admin Panel → Brand Standards
+  - Upload assets:     Asset Library (crud.php)
+  - Add sections:      builder.php (sections are admin-only)
+  - Add Carousel/      builder.php (admin-only buttons appear
+    Marquee:           when logged in as admin)
+
+  Viewer/Kiosk setup:
+  --------------------
+  - Open yoursite.com/viewer.php in the TV browser.
+  - Set the browser to kiosk / fullscreen mode (F11 on most).
+  - Enable auto-start with the OS if needed.
+  - viewer.php requires no login and auto-refreshes every
+    30 seconds — no maintenance needed.
+
+
+================================================================
+14. SECURITY HARDENING CHECKLIST
+================================================================
+
+  Complete ALL of these before going live:
+
+  Server level:
+  [ ] SSL/TLS certificate installed (HTTPS enabled)
+  [ ] HTTPS redirect in .htaccess (see Step 5)
+  [ ] PHP version not exposed (expose_php Off in .htaccess)
+  [ ] Directory listing disabled (Options -Indexes in .htaccess)
+  [ ] PHP error display set to Off in production
+      (In php.ini: display_errors = Off; log_errors = On)
+
+  File system:
+  [ ] db_credentials.php is OUTSIDE public_html
+  [ ] db_credentials.php permissions: 640
+  [ ] uploads/.htaccess is in place (blocks PHP execution)
+  [ ] setup.php DELETED after first admin account created
+  [ ] schema.sql deleted from server (or blocked by .htaccess)
+  [ ] No .php file has 777 permissions
+
+  Database:
+  [ ] App DB user has only the privileges it needs
+      (SELECT, INSERT, UPDATE, DELETE, CREATE is fine;
+       DROP, GRANT, FILE are not needed)
+  [ ] MySQL root password is strong and not used by the app
+  [ ] MySQL not exposed to the internet (bind-address = 127.0.0.1)
+
+  Application (already built in — verify these work):
+  [ ] Login rate limiting: 5 wrong attempts → 5-min lockout
+  [ ] CSRF tokens on all admin forms
+  [ ] Password reset limited to 5 passcode guesses
+  [ ] Session cookie is HttpOnly (set in .htaccess)
+  [ ] Session cookie is Secure when on HTTPS (set in .htaccess)
+  [ ] Uploaded files cannot execute (uploads/.htaccess)
+  [ ] File upload MIME type checked server-side (not just extension)
+  [ ] All user-supplied output runs through htmlspecialchars()
+  [ ] All database queries use prepared statements (PDO)
+  [ ] Assets-only viewer (viewer.php) requires no login
+  [ ] All admin-only actions protected by requireAdmin()
+  [ ] Basic users cannot edit or delete assets
+
+  Ongoing:
+  [ ] Keep PHP and MySQL updated with security patches
+  [ ] Review uploaded files in uploads/ periodically
+  [ ] Change admin password every 90 days
+  [ ] Review user accounts in Admin Panel — deactivate leavers
+
+
+================================================================
+15. TROUBLESHOOTING
+================================================================
+
+  "Database connection failed"
+  ----------------------------
+  - Check that private/db_credentials.php exists and has the
+    correct DB_HOST, DB_NAME, DB_USER, DB_PASS values.
+  - Verify the database user has access to the database.
+  - Confirm the database server is running.
+
+  "Could not save the uploaded file"
+  -----------------------------------
+  - Check that the uploads/ folder exists and is writable.
+  - Set uploads/ to 755 (or 775 if 755 fails).
+  - Check your PHP upload_max_filesize and post_max_size
+    settings in php.ini (recommend at least 50M each).
+
+  "Security token mismatch"
+  --------------------------
+  - The session expired, or the form was submitted from a
+    cached/stale page. Refresh and try again.
+  - If it happens repeatedly, check that session.save_path
+    is writable on your server.
+
+  Password reset emails not arriving
+  ------------------------------------
+  - Check your server's mail logs.
+  - Many shared hosts require the From address to match a
+    domain email account on that server.
+  - Consider using a transactional email relay (SMTP).
+
+  viewer.php shows a blank/black screen
+  ---------------------------------------
+  - The canvas exists but has no published content.
+  - Go to builder.php, add a section, add a block, click
+    Publish. The viewer will refresh within 30 seconds.
+
+  "Too many failed attempts" lockout on login
+  --------------------------------------------
+  - Wait 5 minutes, then try again.
+  - If you are locked out of the only admin account, an
+    admin can reset the session by clearing browser cookies,
+    or you can delete the session files from the server's
+    session.save_path directory (usually /tmp or
+    /var/lib/php/sessions).
+
+  White page / PHP errors showing
+  ---------------------------------
+  - Enable error logging: in php.ini set
+      display_errors = Off
+      log_errors = On
+      error_log = /path/to/php_error.log
+  - Check the error log for the actual message.
+
+  Carousel or Marquee not animating
+  -----------------------------------
+  - These require JavaScript. Check the browser console for
+    errors (F12 → Console tab).
+  - Ensure the slide JSON was saved correctly in builder.php.
+    Open the element's edit panel and verify the slides list.
+
+
+================================================================
+  END OF SETUP GUIDE
+================================================================
+  For issues contact your system administrator.
+  Files included in this package:
+    admin_panel.php, api.php, auth.php, branding_config.php,
+    builder.php, config.php, crud.php, db_connect.php,
+    login.php, logout.php, reset_password.php, schema.sql,
+    setup.php, setup_branding.php, viewer.php,
+    uploads/.htaccess, SETUP_GUIDE.txt
+================================================================
