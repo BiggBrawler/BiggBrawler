@@ -433,6 +433,7 @@
         var rows    = data.rows    || [];
         var valigns = data.valigns || [];
         var haligns = data.haligns || [];
+        var widths  = data.widths  || [];
 
         if (!headers.length || !rows.length) {
             block.style.cssText += 'display:flex;align-items:center;justify-content:center;color:#aaa;font-family:Arial;font-size:14px;background:rgba(0,0,0,0.3);';
@@ -444,6 +445,19 @@
         wrap.className = 'table-wrap';
 
         var tbl = document.createElement('table');
+
+        // Apply column widths via colgroup when any column has an explicit width
+        var hasWidths = widths.some(function(w) { return w > 0; });
+        if (hasWidths) {
+            var cg = document.createElement('colgroup');
+            headers.forEach(function(_, ci) {
+                var col = document.createElement('col');
+                if (widths[ci] > 0) col.style.width = widths[ci] + '%';
+                cg.appendChild(col);
+            });
+            tbl.appendChild(cg);
+        }
+
         rows.forEach(function(row) {
             var tr = document.createElement('tr');
             headers.forEach(function(style, ci) {

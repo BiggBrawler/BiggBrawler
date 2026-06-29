@@ -291,6 +291,9 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     border:1px solid #34495e; border-radius:3px; font-size:12px; margin-bottom:4px;
 }
 .col-align-row { display:flex; gap:3px; margin-bottom:4px; }
+.col-width-row { display:flex; align-items:center; gap:3px; margin-bottom:4px; }
+.col-width-inp { width:52px; background:#0d1b24; border:1px solid #2c3e50; color:#ecf0f1; border-radius:3px; padding:2px 4px; font-size:11px; }
+.col-width-lbl { font-size:10px; color:#95a5a6; }
 .col-align-sel { flex:1; padding:2px 4px; background:#2c3e50; color:#fff; border:1px solid #34495e; border-radius:3px; font-size:10px; }
 .del-col-btn { width:100%; font-size:10px; padding:2px 4px; }
 .del-row-td  { width:32px; text-align:center; background:#0d1b24; }
@@ -2146,11 +2149,12 @@ function openTableModal() {
     var rows    = (td.rows    && td.rows.length)    ? td.rows    : [['', '', ''], ['', '', '']];
     var valigns = (td.valigns && td.valigns.length === headers.length) ? td.valigns : headers.map(function() { return 'top'; });
     var haligns = (td.haligns && td.haligns.length === headers.length) ? td.haligns : headers.map(function() { return 'left'; });
+    var widths  = (td.widths  && td.widths.length  === headers.length) ? td.widths  : headers.map(function() { return 0; });
     rows = rows.map(function(r) {
         while (r.length < headers.length) r.push('');
         return r.slice(0, headers.length);
     });
-    rebuildTableEditor({ headers: headers, rows: rows, valigns: valigns, haligns: haligns });
+    rebuildTableEditor({ headers: headers, rows: rows, valigns: valigns, haligns: haligns, widths: widths });
     document.getElementById('table-modal-overlay').classList.add('open');
 }
 
@@ -2163,6 +2167,7 @@ function rebuildTableEditor(data) {
     var rows    = data.rows    || [];
     var valigns = (data.valigns && data.valigns.length === headers.length) ? data.valigns : headers.map(function() { return 'top'; });
     var haligns = (data.haligns && data.haligns.length === headers.length) ? data.haligns : headers.map(function() { return 'left'; });
+    var widths  = (data.widths  && data.widths.length  === headers.length) ? data.widths  : headers.map(function() { return 0; });
 
     var head = document.getElementById('table-editor-head');
     var body = document.getElementById('table-editor-body');
@@ -2186,6 +2191,7 @@ function rebuildTableEditor(data) {
         var va = valigns[ci] || 'top';
         var ha = haligns[ci] || 'left';
         var th = document.createElement('th');
+        var wval = widths[ci] || 0;
         var styleOpts  = STYLES.map(function(s)  { return '<option value="'+s.value+'"'+(style===s.value?' selected':'')+'>'+s.label+'</option>'; }).join('');
         var valignOpts = VALIGNS.map(function(v) { return '<option value="'+v.value+'"'+(va===v.value?' selected':'')+'>'+v.label+'</option>'; }).join('');
         var halignOpts = HALIGNS.map(function(h) { return '<option value="'+h.value+'"'+(ha===h.value?' selected':'')+'>'+h.label+'</option>'; }).join('');
@@ -2195,6 +2201,7 @@ function rebuildTableEditor(data) {
             '<select class="col-align-sel col-valign-sel" title="Vertical align">' + valignOpts + '</select>' +
             '<select class="col-align-sel col-halign-sel" title="Horizontal align">' + halignOpts + '</select>' +
             '</div>' +
+            '<div class="col-width-row"><input type="number" class="col-width-inp" min="0" max="100" value="' + wval + '" placeholder="auto" title="Column width %"><span class="col-width-lbl">%</span></div>' +
             '<button class="btn danger del-col-btn" onclick="deleteTableCol(' + ci + ')">&#10005; Col</button>';
         htr.appendChild(th);
     });
@@ -2226,11 +2233,12 @@ function getTableEditorData() {
     var headers = Array.from(head.querySelectorAll('.col-style-sel')).map(function(s) { return s.value; });
     var valigns = Array.from(head.querySelectorAll('.col-valign-sel')).map(function(s) { return s.value; });
     var haligns = Array.from(head.querySelectorAll('.col-halign-sel')).map(function(s) { return s.value; });
+    var widths  = Array.from(head.querySelectorAll('.col-width-inp')).map(function(i) { return Math.min(100, Math.max(0, parseInt(i.value) || 0)); });
     var rows = [];
     document.getElementById('table-editor-body').querySelectorAll('tr').forEach(function(tr) {
         rows.push(Array.from(tr.querySelectorAll('td input[type="text"]')).map(function(inp) { return inp.value; }));
     });
-    return { headers: headers, valigns: valigns, haligns: haligns, rows: rows };
+    return { headers: headers, valigns: valigns, haligns: haligns, widths: widths, rows: rows };
 }
 
 function addTableRow() {
@@ -2244,6 +2252,7 @@ function addTableCol() {
     td.headers.push('item_title');
     td.valigns.push('top');
     td.haligns.push('left');
+    td.widths.push(0);
     td.rows.forEach(function(r) { r.push(''); });
     rebuildTableEditor(td);
 }
@@ -2254,6 +2263,7 @@ function deleteTableCol(ci) {
     td.headers.splice(ci, 1);
     td.valigns.splice(ci, 1);
     td.haligns.splice(ci, 1);
+    td.widths.splice(ci, 1);
     td.rows.forEach(function(r) { r.splice(ci, 1); });
     rebuildTableEditor(td);
 }
