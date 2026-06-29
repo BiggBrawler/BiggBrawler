@@ -429,11 +429,12 @@
     function renderTable(block, content, blockStyles) {
         var data = {};
         try { data = JSON.parse(content || '{}'); } catch(e) {}
-        var headers = data.headers || [];
-        var rows    = data.rows    || [];
-        var valigns = data.valigns || [];
-        var haligns = data.haligns || [];
-        var widths  = data.widths  || [];
+        var headers  = data.headers || [];
+        var rows     = data.rows    || [];
+        var valigns  = data.valigns || [];
+        var haligns  = data.haligns || [];
+        var widths   = data.widths  || [];
+        var rowPad   = Math.max(0, parseInt(data.row_padding) || 0);
 
         if (!headers.length || !rows.length) {
             block.style.cssText += 'display:flex;align-items:center;justify-content:center;color:#aaa;font-family:Arial;font-size:14px;background:rgba(0,0,0,0.3);';
@@ -477,6 +478,7 @@
                 }
                 td.style.verticalAlign = valigns[ci] || 'top';
                 td.style.textAlign     = haligns[ci] || 'left';
+                if (rowPad > 0) { td.style.paddingTop = rowPad + 'px'; td.style.paddingBottom = rowPad + 'px'; }
                 td.textContent = (row[ci] !== undefined && row[ci] !== null) ? row[ci] : '';
                 tr.appendChild(td);
             });

@@ -645,9 +645,15 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <div id="table-modal">
         <h2>Edit Table</h2>
         <p>Set the column style using the dropdown, then enter cell content. The dropdowns are hidden on the display screen.</p>
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
             <button class="btn" style="font-size:12px;padding:5px 10px;" onclick="addTableRow()">+ Add Row</button>
             <button class="btn" style="font-size:12px;padding:5px 10px;" onclick="addTableCol()">+ Add Column</button>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#bdc3c7;margin-left:10px;">
+                Row padding
+                <input type="number" id="table-row-padding" min="0" max="120" value="0"
+                       style="width:52px;background:#0d1b24;border:1px solid #2c3e50;color:#ecf0f1;border-radius:3px;padding:2px 4px;font-size:12px;">
+                px
+            </label>
         </div>
         <div class="table-editor-wrap">
             <table class="table-editor">
@@ -2150,10 +2156,12 @@ function openTableModal() {
     var valigns = (td.valigns && td.valigns.length === headers.length) ? td.valigns : headers.map(function() { return 'top'; });
     var haligns = (td.haligns && td.haligns.length === headers.length) ? td.haligns : headers.map(function() { return 'left'; });
     var widths  = (td.widths  && td.widths.length  === headers.length) ? td.widths  : headers.map(function() { return 0; });
+    var rowPad  = parseInt(td.row_padding) || 0;
     rows = rows.map(function(r) {
         while (r.length < headers.length) r.push('');
         return r.slice(0, headers.length);
     });
+    document.getElementById('table-row-padding').value = rowPad;
     rebuildTableEditor({ headers: headers, rows: rows, valigns: valigns, haligns: haligns, widths: widths });
     document.getElementById('table-modal-overlay').classList.add('open');
 }
@@ -2234,11 +2242,12 @@ function getTableEditorData() {
     var valigns = Array.from(head.querySelectorAll('.col-valign-sel')).map(function(s) { return s.value; });
     var haligns = Array.from(head.querySelectorAll('.col-halign-sel')).map(function(s) { return s.value; });
     var widths  = Array.from(head.querySelectorAll('.col-width-inp')).map(function(i) { return Math.min(100, Math.max(0, parseInt(i.value) || 0)); });
+    var rowPad  = Math.min(120, Math.max(0, parseInt(document.getElementById('table-row-padding').value) || 0));
     var rows = [];
     document.getElementById('table-editor-body').querySelectorAll('tr').forEach(function(tr) {
         rows.push(Array.from(tr.querySelectorAll('td input[type="text"]')).map(function(inp) { return inp.value; }));
     });
-    return { headers: headers, valigns: valigns, haligns: haligns, widths: widths, rows: rows };
+    return { headers: headers, valigns: valigns, haligns: haligns, widths: widths, row_padding: rowPad, rows: rows };
 }
 
 function addTableRow() {
