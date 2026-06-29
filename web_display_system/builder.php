@@ -581,8 +581,14 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
             </select>
         </div>
         <label style="margin-top:6px;">Background Color</label>
-        <input type="color" id="marquee-bg" value="#c0392b"
-               style="width:60px;height:30px;margin-top:4px;" oninput="updateMarqueeStyle()">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+            <input type="color" id="marquee-bg" value="#c0392b"
+                   style="width:60px;height:30px;" oninput="updateMarqueeStyle()">
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#bdc3c7;cursor:pointer;">
+                <input type="checkbox" id="marquee-bg-transparent" onchange="updateMarqueeStyle()">
+                Transparent
+            </label>
+        </div>
     </div>
 
     <!-- DB Asset link -->
@@ -1163,7 +1169,10 @@ function showInspector(block) {
         document.getElementById('marquee-color').value         = md.color  || '#ffffff';
         document.getElementById('marquee-size').value          = md.size   || 28;
         document.getElementById('marquee-weight').value        = md.weight || 'bold';
-        document.getElementById('marquee-bg').value            = md.bg     || '#c0392b';
+        var isTrans = (md.bg === 'transparent');
+        document.getElementById('marquee-bg-transparent').checked = isTrans;
+        document.getElementById('marquee-bg').value            = isTrans ? '#c0392b' : (md.bg || '#c0392b');
+        document.getElementById('marquee-bg').disabled         = isTrans;
     }
 
     // Asset link – non-section, non-carousel, non-marquee, non-table
@@ -2308,7 +2317,7 @@ function buildMarqueePreview(block, data) {
     var color  = d.color  || '#ffffff';
     var size   = d.size   || 28;
     var weight = d.weight || 'bold';
-    var bg     = d.bg     || '#c0392b';
+    var bg     = d.bg === 'transparent' ? 'transparent' : (d.bg || '#c0392b');
     block.style.background = bg;
     var inner = document.createElement('div');
     inner.className  = 'marquee-preview';
@@ -2338,10 +2347,12 @@ function updateMarqueeSpeed(val) {
 function updateMarqueeStyle() {
     if (!activeBlock || activeBlock.dataset.type !== 'marquee') return;
     var md = {}; try { md = JSON.parse(activeBlock.dataset.marqueeData || '{}'); } catch(e) {}
+    var isTrans = document.getElementById('marquee-bg-transparent').checked;
+    document.getElementById('marquee-bg').disabled = isTrans;
     md.color  = document.getElementById('marquee-color').value;
     md.size   = parseInt(document.getElementById('marquee-size').value)   || 28;
     md.weight = document.getElementById('marquee-weight').value;
-    md.bg     = document.getElementById('marquee-bg').value;
+    md.bg     = isTrans ? 'transparent' : document.getElementById('marquee-bg').value;
     activeBlock.dataset.marqueeData = JSON.stringify(md);
     buildMarqueePreview(activeBlock, md);
 }

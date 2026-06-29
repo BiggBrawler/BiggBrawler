@@ -499,7 +499,7 @@
         var color  = data.color  || '#ffffff';
         var size   = data.size   || 28;
         var weight = data.weight || 'bold';
-        var bg     = data.bg     || '#c0392b';
+        var bg     = data.bg === 'transparent' ? 'transparent' : (data.bg || '#c0392b');
 
         block.style.background = bg;
 
