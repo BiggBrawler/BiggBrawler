@@ -96,6 +96,12 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 .editable-block.selected  { outline: 2px solid #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,.5); }
 .editable-block.multi-sel { outline: 2px solid #f39c12; box-shadow: 0 0 6px rgba(243,156,18,.4); }
 .editable-block.locked-block { cursor: default; }
+.editable-block.hidden-block { opacity: 0.45; }
+.hidden-badge {
+    position:absolute; top:0; left:0; right:0; z-index:50;
+    background:rgba(192,57,43,0.82); color:#fff; font-size:9px; font-weight:bold;
+    text-align:center; padding:2px 0; pointer-events:none; letter-spacing:1px;
+}
 /* ── Resize handles ── */
 .rh {
     position: absolute; width: 10px; height: 10px;
@@ -809,6 +815,8 @@ function renderSection(el) {
     s.dataset.locked  = el.locked  || 0;
     s.dataset.zIndex  = Math.max(1, parseInt(el.z_index) || 1);
     s.style.zIndex    = s.dataset.zIndex;
+    s.dataset.hidden  = parseInt(el.hidden) ? '1' : '0';
+    if (parseInt(el.hidden)) { s.classList.add('hidden-block'); }
 
     // Parse path|fit format for section background
     var _bgRaw   = el.section_bg || '';
@@ -910,6 +918,14 @@ function renderBlock(el, parent) {
     block.dataset.locked  = el.locked     ? '1' : '0';
     block.dataset.zIndex  = Math.max(1, parseInt(el.z_index) || 1);
     block.style.zIndex    = block.dataset.zIndex;
+    block.dataset.hidden  = parseInt(el.hidden) ? '1' : '0';
+    if (parseInt(el.hidden)) {
+        block.classList.add('hidden-block');
+        var _hb = document.createElement('div');
+        _hb.className = 'hidden-badge';
+        _hb.textContent = 'HIDDEN';
+        block.appendChild(_hb);
+    }
     block.style.width     = el.width  + 'px';
     block.style.height    = el.height + 'px';
     block.style.transform = 'translate('+el.x_pos+'px,'+el.y_pos+'px)';
@@ -1721,15 +1737,23 @@ function hideResizeLabel() {
 // ============================================================
 // UTILITIES
 // ============================================================
+function _parentBounds() {
+    // Returns {w, h} of the parent container (section or canvas)
+    var p = activeBlock && activeBlock.parentElement;
+    if (!p) return { w: 1920, h: 1080 };
+    return { w: p.offsetWidth, h: p.offsetHeight };
+}
+
 function applyDim(which, val) {
     if (!activeBlock) return;
     val = parseInt(val) || 0;
+    var pb = _parentBounds();
     if (which === 'w') {
-        val = Math.max(40, val);
+        val = Math.max(40, Math.min(val, pb.w));
         activeBlock.style.width = val + 'px';
         document.getElementById('insp-w').value = val;
     } else {
-        val = Math.max(24, val);
+        val = Math.max(24, Math.min(val, pb.h));
         activeBlock.style.height = val + 'px';
         document.getElementById('insp-h').value = val;
     }
@@ -1738,9 +1762,15 @@ function applyDim(which, val) {
 function applyPos(which, val) {
     if (!activeBlock) return;
     val = parseInt(val) || 0;
-    var x = parseFloat(activeBlock.getAttribute('data-x')) || 0;
-    var y = parseFloat(activeBlock.getAttribute('data-y')) || 0;
-    if (which === 'x') x = val; else y = val;
+    var pb  = _parentBounds();
+    var bw  = activeBlock.offsetWidth;
+    var bh  = activeBlock.offsetHeight;
+    var x   = parseFloat(activeBlock.getAttribute('data-x')) || 0;
+    var y   = parseFloat(activeBlock.getAttribute('data-y')) || 0;
+    // Clamp to parent bounds for child blocks; canvas bounds for root/section blocks
+    var isChild = activeBlock.classList.contains('child-block');
+    if (which === 'x') x = isChild ? Math.max(0, Math.min(val, pb.w - bw)) : val;
+    else               y = isChild ? Math.max(0, Math.min(val, pb.h - bh)) : val;
     activeBlock.style.transform = 'translate('+x+'px,'+y+'px)';
     activeBlock.setAttribute('data-x', x);
     activeBlock.setAttribute('data-y', y);

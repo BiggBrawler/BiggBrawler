@@ -181,9 +181,15 @@
                     canvas.style.backgroundColor = '#111';
                 }
 
+                // Build set of hidden section IDs so their children are also skipped
+                var hiddenSections = new Set(
+                    elements.filter(function(e) { return e.type === 'section' && parseInt(e.hidden); })
+                            .map(function(e) { return parseInt(e.id); })
+                );
+
                 // Render sections first, build id→element map
                 var sectionMap = {};
-                elements.filter(function(e) { return e.type === 'section'; }).forEach(function(el) {
+                elements.filter(function(e) { return e.type === 'section' && !parseInt(e.hidden); }).forEach(function(el) {
                     var s = document.createElement('div');
                     s.className    = 'section-block';
                     s.style.left    = el.x_pos  + 'px';
@@ -212,8 +218,12 @@
                     sectionMap[el.id] = s;
                 });
 
-                // Render non-section elements
-                elements.filter(function(e) { return e.type !== 'section'; }).forEach(function(el) {
+                // Render non-section elements (skip hidden; skip children of hidden sections)
+                elements.filter(function(e) {
+                    return e.type !== 'section'
+                        && !parseInt(e.hidden)
+                        && !hiddenSections.has(parseInt(e.section_id));
+                }).forEach(function(el) {
                     var parent = el.section_id ? sectionMap[el.section_id] : canvas;
                     if (!parent) return;
 

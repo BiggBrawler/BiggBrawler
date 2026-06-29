@@ -272,6 +272,19 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
         .bs-table input[type="number"] { width: 70px; }
         .bs-table select { min-width: 130px; }
         .preview-text { padding: 4px 8px; border: 1px solid #eee; border-radius: 3px; white-space: nowrap; }
+
+        /* --- Work Area element type badges --- */
+        .el-badge { display:inline-block; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:bold; text-transform:uppercase; }
+        .el-section  { background:#e8d5fb; color:#6c3483; }
+        .el-text      { background:#d6eaf8; color:#1a5276; }
+        .el-image     { background:#d4efdf; color:#1e8449; }
+        .el-video     { background:#fde8d8; color:#a04000; }
+        .el-carousel  { background:#fef9e7; color:#7d6608; border:1px solid #d4ac0d; }
+        .el-table     { background:#eaf7fb; color:#0e6655; }
+        .el-marquee   { background:#fdedec; color:#922b21; }
+        .el-desc { font-size:13px; color:#2c3e50; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .el-hidden-tag { display:inline-block; padding:1px 6px; border-radius:8px; font-size:10px;
+                         font-weight:bold; background:#fdecea; color:#c0392b; margin-left:6px; vertical-align:middle; }
     </style>
 </head>
 <body>
@@ -293,6 +306,7 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
     <button class="tab-btn <?= $tab==='brand'    ?'active':'' ?>" onclick="showTab('brand')">Display Branding</button>
     <button class="tab-btn <?= $tab==='branding' ?'active':'' ?>" onclick="showTab('branding')">Site Branding</button>
     <button class="tab-btn <?= $tab==='settings' ?'active':'' ?>" onclick="showTab('settings')">Settings</button>
+    <button class="tab-btn <?= $tab==='workarea' ?'active':'' ?>" onclick="showTab('workarea')">Work Area</button>
 </div>
 
 <div class="content">
@@ -628,10 +642,28 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
     </form>
 </div>
 
+<!-- ============================================================ -->
+<!-- WORK AREA TAB                                                  -->
+<!-- ============================================================ -->
+<div id="tab-workarea" style="display:<?= $tab==='workarea'?'block':'none' ?>">
+    <div class="card">
+        <h2>Canvas Elements</h2>
+        <p style="font-size:13px; color:#7f8c8d; margin-bottom:16px;">
+            All elements currently on the builder canvas. Hide removes the element from the viewer display immediately — no publish required. Delete permanently removes it from the canvas.
+        </p>
+        <div style="margin-bottom:14px;">
+            <button class="btn btn-blue" style="font-size:12px;" onclick="loadCanvasElements()">&#8635; Refresh</button>
+        </div>
+        <div id="canvas-elements-wrap">
+            <p style="color:#7f8c8d;font-size:13px;">Click Refresh or open this tab to load.</p>
+        </div>
+    </div>
+</div>
+
 </div><!-- .content -->
 
 <script>
-    var _tabs = ['users','brand','branding','settings'];
+    var _tabs = ['users','brand','branding','settings','workarea'];
     function showTab(name) {
         _tabs.forEach(function(t) {
             document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
@@ -639,7 +671,117 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
         document.querySelectorAll('.tab-btn').forEach(function(b, i) {
             b.classList.toggle('active', _tabs[i] === name);
         });
+        if (name === 'workarea') loadCanvasElements();
     }
+
+    // ── Work Area ──────────────────────────────────────────────
+    function loadCanvasElements() {
+        var wrap = document.getElementById('canvas-elements-wrap');
+        wrap.innerHTML = '<p style="color:#7f8c8d;font-size:13px;">Loading…</p>';
+        fetch('api.php?action=get_canvas_elements')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!Array.isArray(data) || !data.length) {
+                    wrap.innerHTML = '<p style="color:#7f8c8d;font-size:13px;">No elements on the canvas.</p>';
+                    return;
+                }
+                renderElementsList(data);
+            })
+            .catch(function() {
+                wrap.innerHTML = '<p style="color:#e74c3c;font-size:13px;">Failed to load elements.</p>';
+            });
+    }
+
+    function renderElementsList(elements) {
+        // Map section id → display number
+        var secNum = {}, n = 0;
+        elements.forEach(function(el) { if (el.type === 'section') secNum[el.id] = ++n; });
+
+        var rows = elements.map(function(el) {
+            var isHidden = parseInt(el.hidden) === 1;
+            var parentCell = el.section_id
+                ? '<span style="font-size:11px;color:#7f8c8d;">Section ' + (secNum[el.section_id] || el.section_id) + '</span>'
+                : '—';
+            var hiddenTag  = isHidden ? '<span class="el-hidden-tag">HIDDEN</span>' : '';
+            var toggleLbl  = isHidden ? '&#128065; Show' : '&#128683; Hide';
+            var toggleCls  = isHidden ? 'btn-green' : 'btn-gray';
+            return '<tr>' +
+                '<td><span class="el-badge el-' + el.type + '">' + el.type + '</span></td>' +
+                '<td><span class="el-desc">' + escHtml(elDesc(el)) + '</span>' + hiddenTag + '</td>' +
+                '<td>' + parentCell + '</td>' +
+                '<td style="white-space:nowrap;color:#555;">' + el.width + '×' + el.height + '</td>' +
+                '<td><button class="btn ' + toggleCls + '" style="font-size:11px;padding:4px 10px;" ' +
+                    'onclick="setElHidden(' + el.id + ',' + (isHidden ? 0 : 1) + ')">' + toggleLbl + '</button></td>' +
+                '<td><button class="btn btn-red" style="font-size:11px;padding:4px 10px;" ' +
+                    'onclick="delEl(' + el.id + ',\'' + el.type + '\')">' +
+                    '&#128465; Delete</button></td>' +
+            '</tr>';
+        }).join('');
+
+        document.getElementById('canvas-elements-wrap').innerHTML =
+            '<table><thead><tr>' +
+            '<th>Type</th><th>Description</th><th>Parent</th><th>Size</th><th>Visibility</th><th>Delete</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    function elDesc(el) {
+        if (el.type === 'section')  return 'Section';
+        if (el.type === 'image')    return 'Image';
+        if (el.type === 'video')    return 'Video';
+        if (el.type === 'carousel') return 'Carousel';
+        if (el.type === 'marquee') {
+            try { return (JSON.parse(el.manual_content || '{}').text || 'Marquee').substring(0, 60); }
+            catch(e) { return 'Marquee'; }
+        }
+        if (el.type === 'table') {
+            try {
+                var td = JSON.parse(el.manual_content || '{}');
+                return 'Table ' + (td.headers||[]).length + ' col × ' + (td.rows||[]).length + ' row';
+            } catch(e) { return 'Table'; }
+        }
+        // text
+        var labels = { section_header:'Section Header', item_title:'Item Title', item_title_2:'Item Title 2',
+                       price:'Price', price_2:'Price 2', description:'Description' };
+        var prefix = (el.block_subtype && el.block_subtype !== 'free') ? '[' + (labels[el.block_subtype]||el.block_subtype) + '] ' : '';
+        var txt = (el.manual_content || '').replace(/<[^>]*>/g, '').substring(0, 60);
+        return prefix + (txt || '(empty)');
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function setElHidden(id, hidden) {
+        var fd = new FormData();
+        fd.append('action', 'set_element_hidden');
+        fd.append('element_id', id);
+        fd.append('hidden', hidden);
+        fetch('api.php', { method:'POST', body:fd })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.status === 'success') { loadCanvasElements(); }
+                else { alert('Error: ' + (res.message || 'Unknown')); }
+            });
+    }
+
+    function delEl(id, type) {
+        var msg = type === 'section'
+            ? 'Delete this section AND all elements inside it? This cannot be undone.'
+            : 'Delete this element from the canvas? This cannot be undone.';
+        if (!confirm(msg)) return;
+        var fd = new FormData();
+        fd.append('action', 'delete_canvas_element');
+        fd.append('element_id', id);
+        fetch('api.php', { method:'POST', body:fd })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.status === 'success') { loadCanvasElements(); }
+                else { alert('Error: ' + (res.message || 'Unknown')); }
+            });
+    }
+
+    // Auto-load if Work Area is the landing tab
+    if (<?= json_encode($tab) ?> === 'workarea') loadCanvasElements();
 
     function brandPreview() {
         var nav  = document.getElementById('brand-preview-nav');

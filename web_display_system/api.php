@@ -21,6 +21,8 @@ try { $pdo->exec("ALTER TABLE canvas_elements MODIFY COLUMN type ENUM('section',
 try { $pdo->exec("INSERT IGNORE INTO block_styles (block_type,font_family,font_size,font_color,font_weight,font_style,line_height) VALUES ('item_title_2','Arial',24,'#27ae60','bold','normal',1.30),('price_2','Arial',30,'#e74c3c','bold','normal',1.20)"); } catch(Exception $e) {}
 // Auto-migrate: add z_index column for layer ordering
 try { $pdo->exec("ALTER TABLE canvas_elements ADD COLUMN z_index INT NOT NULL DEFAULT 1"); } catch(Exception $e) {}
+// Auto-migrate: add hidden column for admin visibility control
+try { $pdo->exec("ALTER TABLE canvas_elements ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0"); } catch(Exception $e) {}
 
 // ---- Upload whitelists ----
 define('IMG_EXT',  ['jpg','jpeg','png','gif','webp']);
@@ -268,6 +270,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_brand_styles') {
         ]);
     }
     echo json_encode(['status' => 'success']);
+    exit;
+}
+
+// ============================================================
+// GET: get_canvas_elements  (admin only)
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_canvas_elements') {
+    if (!$isAdmin) { echo json_encode(['status'=>'error','message'=>'Admins only.']); exit; }
+    $elements = $pdo->query(
+        "SELECT id, section_id, type, block_subtype, manual_content, hidden, z_index, width, height, sort_order
+         FROM canvas_elements
+         ORDER BY CASE WHEN type='section' THEN 0 ELSE 1 END, sort_order ASC, id ASC"
+    )->fetchAll();
+    echo json_encode($elements);
+    exit;
+}
+
+// ============================================================
+// POST: set_element_hidden  (admin only)
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'set_element_hidden') {
+    if (!$isAdmin) { echo json_encode(['status'=>'error','message'=>'Admins only.']); exit; }
+    $id     = intval($_POST['element_id'] ?? 0);
+    $hidden = intval($_POST['hidden'] ?? 0) ? 1 : 0;
+    if (!$id) { echo json_encode(['status'=>'error','message'=>'Missing element_id.']); exit; }
+    $pdo->prepare("UPDATE canvas_elements SET hidden=? WHERE id=?")->execute([$hidden, $id]);
+    echo json_encode(['status'=>'success']);
+    exit;
+}
+
+// ============================================================
+// POST: delete_canvas_element  (admin only)
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete_canvas_element') {
+    if (!$isAdmin) { echo json_encode(['status'=>'error','message'=>'Admins only.']); exit; }
+    $id = intval($_POST['element_id'] ?? 0);
+    if (!$id) { echo json_encode(['status'=>'error','message'=>'Missing element_id.']); exit; }
+    // Children of sections are removed automatically via FK ON DELETE CASCADE
+    $pdo->prepare("DELETE FROM canvas_elements WHERE id=?")->execute([$id]);
+    echo json_encode(['status'=>'success']);
     exit;
 }
 
