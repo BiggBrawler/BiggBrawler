@@ -363,21 +363,21 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
 <!-- ── Align bar (shown on multi-select OR single select) ── -->
 <div id="align-bar">
-    <span>Align selection:</span>
-    <button class="align-btn" title="Align left edges"    onclick="alignBlocks('left')"     style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
-    <button class="align-btn" title="Align right edges"   onclick="alignBlocks('right')"    style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
-    <button class="align-btn" title="Align top edges"     onclick="alignBlocks('top')"      style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
-    <button class="align-btn" title="Align bottom edges"  onclick="alignBlocks('bottom')"   style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
-    <button class="align-btn" title="Center horizontally" onclick="alignBlocks('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
-    <button class="align-btn" title="Center vertically"   onclick="alignBlocks('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
+    <span style="font-size:11px;color:#bdc3c7;">Align Items:</span>
+    <button class="align-btn" title="Align left edges (single: to parent left)"    onclick="alignBlocks('left')"     style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
+    <button class="align-btn" title="Align right edges (single: to parent right)"  onclick="alignBlocks('right')"    style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
+    <button class="align-btn" title="Align top edges (single: to parent top)"      onclick="alignBlocks('top')"      style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
+    <button class="align-btn" title="Align bottom edges (single: to parent bottom)" onclick="alignBlocks('bottom')"  style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
+    <button class="align-btn" title="Center horizontally (single: within parent)"  onclick="alignBlocks('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
+    <button class="align-btn" title="Center vertically (single: within parent)"    onclick="alignBlocks('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
     <div class="sep"></div>
-    <span style="font-size:11px;color:#bdc3c7;">Align to screen:</span>
-    <button class="align-btn" title="Align left edge to canvas" onclick="alignToScreen('left')"   style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
-    <button class="align-btn" title="Center on canvas"         onclick="alignToScreen('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
-    <button class="align-btn" title="Align right edge to canvas" onclick="alignToScreen('right')" style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
-    <button class="align-btn" title="Align top edge to canvas"  onclick="alignToScreen('top')"    style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
-    <button class="align-btn" title="Center vertically on canvas" onclick="alignToScreen('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
-    <button class="align-btn" title="Align bottom edge to canvas" onclick="alignToScreen('bottom')" style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
+    <span style="font-size:11px;color:#bdc3c7;">Align to Parent:</span>
+    <button class="align-btn" title="Snap left edge to parent left"   onclick="alignToParent('left')"     style="width:auto;padding:0 8px;font-size:11px;">&#9664; Left</button>
+    <button class="align-btn" title="Center in parent horizontally"   onclick="alignToParent('center-h')" style="width:auto;padding:0 8px;font-size:11px;">&#8596; H-Center</button>
+    <button class="align-btn" title="Snap right edge to parent right" onclick="alignToParent('right')"    style="width:auto;padding:0 8px;font-size:11px;">Right &#9654;</button>
+    <button class="align-btn" title="Snap top edge to parent top"     onclick="alignToParent('top')"      style="width:auto;padding:0 8px;font-size:11px;">&#9650; Top</button>
+    <button class="align-btn" title="Center in parent vertically"     onclick="alignToParent('center-v')" style="width:auto;padding:0 8px;font-size:11px;">&#8597; V-Center</button>
+    <button class="align-btn" title="Snap bottom edge to parent bottom" onclick="alignToParent('bottom')" style="width:auto;padding:0 8px;font-size:11px;">Bottom &#9660;</button>
     <div class="sep"></div>
     <span id="sel-count" style="font-size:11px; color:#bdc3c7;"></span>
 </div>
@@ -592,7 +592,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
     <!-- Align tip -->
     <div class="insp-section" style="font-size:11px;color:#7f8c8d;line-height:1.5;">
-        &#128161; <strong style="color:#bdc3c7;">Alignment tools:</strong> Shift+click a second block — a toolbar appears above the canvas to align or distribute them.
+        &#128161; <strong style="color:#bdc3c7;">Alignment tools:</strong> Select one block to align it to its parent. Shift+click additional blocks (same parent only) to align them to each other.
     </div>
 
     <!-- Layer / Z-index -->
@@ -1173,6 +1173,17 @@ function showInspector(block) {
 // MULTI-SELECT
 // ============================================================
 function toggleMultiSel(block) {
+    // Determine the anchor scope (parent of the first element in the group)
+    var anchorParent = multiSel.length > 0 ? multiSel[0].parentElement
+                     : activeBlock          ? activeBlock.parentElement
+                     : null;
+
+    // Enforce same-scope: block being added must share the same parent container
+    if (anchorParent && block.parentElement !== anchorParent && multiSel.indexOf(block) < 0) {
+        showToast('Multi-select is limited to elements within the same parent.', true);
+        return;
+    }
+
     // Absorb the single-selected block into multiSel before toggling the new one
     if (activeBlock && multiSel.indexOf(activeBlock) < 0) {
         activeBlock.classList.remove('selected');
@@ -1205,7 +1216,11 @@ function updateAlignBar() {
     var total = multiSel.length + (activeBlock ? 1 : 0);
     if (total > 0) {
         bar.style.display = 'flex';
-        cnt.textContent = multiSel.length > 1 ? multiSel.length + ' blocks selected' : '1 block selected';
+        if (multiSel.length >= 2) {
+            cnt.textContent = multiSel.length + ' blocks — aligning to each other';
+        } else {
+            cnt.textContent = '1 block — aligning to parent';
+        }
     } else {
         bar.style.display = 'none';
     }
@@ -1214,42 +1229,81 @@ function updateAlignBar() {
 // ============================================================
 // ALIGNMENT
 // ============================================================
-function alignBlocks(direction) {
-    if (multiSel.length < 2) return;
 
-    var bounds = multiSel.map(function(b) {
-        return {
-            el: b,
-            x: parseFloat(b.getAttribute('data-x')) || 0,
-            y: parseFloat(b.getAttribute('data-y')) || 0,
-            w: b.offsetWidth,
-            h: b.offsetHeight
-        };
-    });
-
-    var minX   = Math.min.apply(null, bounds.map(function(b){ return b.x; }));
-    var minY   = Math.min.apply(null, bounds.map(function(b){ return b.y; }));
-    var maxR   = Math.max.apply(null, bounds.map(function(b){ return b.x + b.w; }));
-    var maxB   = Math.max.apply(null, bounds.map(function(b){ return b.y + b.h; }));
-    var ctrX   = minX + (maxR - minX) / 2;
-    var ctrY   = minY + (maxB - minY) / 2;
-
-    bounds.forEach(function(b) {
-        var nx = b.x, ny = b.y;
-        if      (direction==='left')     nx = minX;
-        else if (direction==='right')    nx = maxR - b.w;
-        else if (direction==='top')      ny = minY;
-        else if (direction==='bottom')   ny = maxB - b.h;
-        else if (direction==='center-h') nx = ctrX - b.w / 2;
-        else if (direction==='center-v') ny = ctrY - b.h / 2;
-        moveBlock(b.el, nx, ny);
-    });
+// Returns the parent container's usable dimensions for a block
+function _parentContainer(block) {
+    var canvas = document.getElementById('builder-canvas');
+    var p = block.parentElement;
+    return {
+        el: p,
+        w: (p === canvas) ? 1920 : p.offsetWidth,
+        h: (p === canvas) ? 1080 : p.offsetHeight
+    };
 }
 
+// Move block and hard-clamp to its parent bounds (no element can exceed parent)
 function moveBlock(block, nx, ny) {
-    block.style.transform = 'translate('+nx+'px,'+ny+'px)';
+    var pc = _parentContainer(block);
+    nx = Math.max(0, Math.min(nx, Math.max(0, pc.w - block.offsetWidth)));
+    ny = Math.max(0, Math.min(ny, Math.max(0, pc.h - block.offsetHeight)));
+    block.style.transform = 'translate(' + nx + 'px,' + ny + 'px)';
     block.setAttribute('data-x', nx);
     block.setAttribute('data-y', ny);
+}
+
+function alignBlocks(direction) {
+    var targets = multiSel.length > 0 ? multiSel.slice() : (activeBlock ? [activeBlock] : []);
+    if (targets.length === 0) return;
+
+    if (targets.length === 1) {
+        // Single element: align to its parent container
+        var block = targets[0];
+        var pc = _parentContainer(block);
+        var x  = parseFloat(block.getAttribute('data-x')) || 0;
+        var y  = parseFloat(block.getAttribute('data-y')) || 0;
+        var w  = block.offsetWidth;
+        var h  = block.offsetHeight;
+        if      (direction === 'left')     x = 0;
+        else if (direction === 'right')    x = pc.w - w;
+        else if (direction === 'top')      y = 0;
+        else if (direction === 'bottom')   y = pc.h - h;
+        else if (direction === 'center-h') x = (pc.w - w) / 2;
+        else if (direction === 'center-v') y = (pc.h - h) / 2;
+        moveBlock(block, x, y);
+    } else {
+        // Multi-select: align relative to each other (scope already enforced at selection time)
+        var bounds = targets.map(function(b) {
+            return {
+                el: b,
+                x: parseFloat(b.getAttribute('data-x')) || 0,
+                y: parseFloat(b.getAttribute('data-y')) || 0,
+                w: b.offsetWidth,
+                h: b.offsetHeight
+            };
+        });
+        var minX = Math.min.apply(null, bounds.map(function(b){ return b.x; }));
+        var minY = Math.min.apply(null, bounds.map(function(b){ return b.y; }));
+        var maxR = Math.max.apply(null, bounds.map(function(b){ return b.x + b.w; }));
+        var maxB = Math.max.apply(null, bounds.map(function(b){ return b.y + b.h; }));
+        var ctrX = minX + (maxR - minX) / 2;
+        var ctrY = minY + (maxB - minY) / 2;
+        bounds.forEach(function(b) {
+            var nx = b.x, ny = b.y;
+            if      (direction === 'left')     nx = minX;
+            else if (direction === 'right')    nx = maxR - b.w;
+            else if (direction === 'top')      ny = minY;
+            else if (direction === 'bottom')   ny = maxB - b.h;
+            else if (direction === 'center-h') nx = ctrX - b.w / 2;
+            else if (direction === 'center-v') ny = ctrY - b.h / 2;
+            moveBlock(b.el, nx, ny);
+        });
+    }
+
+    // Sync inspector if activeBlock is in the target set
+    if (activeBlock && targets.indexOf(activeBlock) >= 0) {
+        document.getElementById('insp-x').value = Math.round(parseFloat(activeBlock.getAttribute('data-x')) || 0);
+        document.getElementById('insp-y').value = Math.round(parseFloat(activeBlock.getAttribute('data-y')) || 0);
+    }
 }
 
 // ============================================================
@@ -2300,21 +2354,24 @@ function applyTextAlign(align) {
 // ============================================================
 // ALIGN TO SCREEN (1920 × 1080 canvas)
 // ============================================================
-function alignToScreen(direction) {
-    var CANVAS_W = 1920, CANVAS_H = 1080;
+// "Align to Parent" — snaps each element to a position within its own parent container.
+// For child blocks in a section, the section is the parent.
+// For root-level blocks and sections, the canvas (1920×1080) is the parent.
+function alignToParent(direction) {
     var targets = multiSel.length > 0 ? multiSel : (activeBlock ? [activeBlock] : []);
     if (targets.length === 0) return;
     targets.forEach(function(block) {
-        var x = parseFloat(block.getAttribute('data-x')) || 0;
-        var y = parseFloat(block.getAttribute('data-y')) || 0;
-        var w = block.offsetWidth;
-        var h = block.offsetHeight;
+        var pc = _parentContainer(block);
+        var x  = parseFloat(block.getAttribute('data-x')) || 0;
+        var y  = parseFloat(block.getAttribute('data-y')) || 0;
+        var w  = block.offsetWidth;
+        var h  = block.offsetHeight;
         if      (direction === 'left')     x = 0;
-        else if (direction === 'right')    x = CANVAS_W - w;
-        else if (direction === 'center-h') x = (CANVAS_W - w) / 2;
+        else if (direction === 'right')    x = pc.w - w;
+        else if (direction === 'center-h') x = (pc.w - w) / 2;
         else if (direction === 'top')      y = 0;
-        else if (direction === 'bottom')   y = CANVAS_H - h;
-        else if (direction === 'center-v') y = (CANVAS_H - h) / 2;
+        else if (direction === 'bottom')   y = pc.h - h;
+        else if (direction === 'center-v') y = (pc.h - h) / 2;
         moveBlock(block, x, y);
     });
     if (activeBlock && targets.indexOf(activeBlock) >= 0) {
