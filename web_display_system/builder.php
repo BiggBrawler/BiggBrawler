@@ -589,6 +589,18 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         &#128161; <strong style="color:#bdc3c7;">Alignment tools:</strong> Shift+click a second block — a toolbar appears above the canvas to align or distribute them.
     </div>
 
+    <!-- Layer / Z-index -->
+    <div class="insp-section" id="insp-zindex">
+        <label>Layer Order</label>
+        <div style="display:flex;gap:4px;margin-top:4px;">
+            <button class="btn gray" style="flex:1;padding:4px 2px;font-size:11px;" onclick="sendToBack()"   title="Send to Back">&#8609; Back</button>
+            <button class="btn gray" style="flex:1;padding:4px 2px;font-size:11px;" onclick="sendBackward()" title="Send Backward">&#8595; Bwd</button>
+            <button class="btn gray" style="flex:1;padding:4px 2px;font-size:11px;" onclick="bringForward()" title="Bring Forward">&#8593; Fwd</button>
+            <button class="btn gray" style="flex:1;padding:4px 2px;font-size:11px;" onclick="bringToFront()" title="Bring to Front">&#8607; Front</button>
+        </div>
+        <div style="font-size:11px;color:#bdc3c7;margin-top:4px;">Layer: <span id="insp-zindex-val">1</span></div>
+    </div>
+
     <!-- Lock toggle -->
     <div class="insp-section">
         <label>
@@ -783,7 +795,7 @@ function createSection() {
     var center = getCanvasDropCenter(def.w, def.h, null);
     renderSection({
         type:'section', temp_id: tmpId(), db_id: null,
-        x_pos: center.x, y_pos: center.y, width: def.w, height: def.h, section_bg: null, locked: 0
+        x_pos: center.x, y_pos: center.y, width: def.w, height: def.h, section_bg: null, locked: 0, z_index: 1
     });
 }
 
@@ -795,6 +807,8 @@ function renderSection(el) {
     s.dataset.tempId  = el.temp_id || tmpId();
     s.dataset.dbId    = el.id      || '';
     s.dataset.locked  = el.locked  || 0;
+    s.dataset.zIndex  = Math.max(1, parseInt(el.z_index) || 1);
+    s.style.zIndex    = s.dataset.zIndex;
 
     // Parse path|fit format for section background
     var _bgRaw   = el.section_bg || '';
@@ -874,7 +888,7 @@ function createBlock(type, subtype) {
         type: type, block_subtype: subtype || 'free',
         x_pos: center.x, y_pos: center.y, width: def.w, height: def.h,
         manual_content: type==='text' ? (subtype ? 'Enter text here' : 'Double-click to edit') : '',
-        asset_id: null, locked: 0,
+        asset_id: null, locked: 0, z_index: 1,
         font_family: 'Arial', font_size: 16, font_color: '#000000',
         font_weight: 'normal', font_style: 'normal', line_height: 1.4
     };
@@ -894,6 +908,8 @@ function renderBlock(el, parent) {
     block.dataset.assetId = el.asset_id   || '';
     block.dataset.sectionBg = '';
     block.dataset.locked  = el.locked     ? '1' : '0';
+    block.dataset.zIndex  = Math.max(1, parseInt(el.z_index) || 1);
+    block.style.zIndex    = block.dataset.zIndex;
     block.style.width     = el.width  + 'px';
     block.style.height    = el.height + 'px';
     block.style.transform = 'translate('+el.x_pos+'px,'+el.y_pos+'px)';
@@ -1130,6 +1146,9 @@ function showInspector(block) {
     document.getElementById('insp-asset').style.display = hideAsset ? 'none' : 'block';
     document.getElementById('asset-link').value = block.dataset.assetId || '';
 
+    // Z-index / layer order
+    document.getElementById('insp-zindex-val').textContent = parseInt(block.dataset.zIndex) || 1;
+
     // Lock toggle
     document.getElementById('lock-toggle').checked = block.dataset.locked === '1';
 }
@@ -1220,6 +1239,36 @@ function moveBlock(block, nx, ny) {
 // ============================================================
 // LOCK / UNLOCK
 // ============================================================
+// ============================================================
+// LAYER / Z-INDEX
+// ============================================================
+function _setZIndex(val) {
+    if (!activeBlock) return;
+    val = Math.max(1, parseInt(val) || 1); // min = 1; 0 is background
+    activeBlock.style.zIndex   = val;
+    activeBlock.dataset.zIndex = val;
+    document.getElementById('insp-zindex-val').textContent = val;
+}
+function _siblingZValues() {
+    if (!activeBlock) return [];
+    return Array.from(activeBlock.parentElement.children)
+        .filter(function(el) { return el !== activeBlock && el.classList.contains('editable-block'); })
+        .map(function(el) { return parseInt(el.style.zIndex) || 1; });
+}
+function bringToFront() {
+    var maxZ = Math.max.apply(null, _siblingZValues().concat([1]));
+    _setZIndex(maxZ + 1);
+}
+function bringForward() {
+    _setZIndex((parseInt(activeBlock && activeBlock.dataset.zIndex) || 1) + 1);
+}
+function sendBackward() {
+    _setZIndex(Math.max(1, (parseInt(activeBlock && activeBlock.dataset.zIndex) || 1) - 1));
+}
+function sendToBack() {
+    _setZIndex(1); // 1 is the minimum; background is 0
+}
+
 function toggleLock(locked) {
     if (!activeBlock) return;
     activeBlock.dataset.locked = locked ? '1' : '0';
@@ -1492,6 +1541,7 @@ function publishCanvas() {
             section_bg: _sbPath ? (_sbPath + '|' + _sbFit) : null,
             locked:     s.dataset.locked === '1' ? 1 : 0,
             sort_order: 0,
+            z_index:    Math.max(1, parseInt(s.dataset.zIndex) || 1),
         });
     });
 
@@ -1549,6 +1599,7 @@ function publishCanvas() {
             text_align:     block.dataset.textAlign || block.style.textAlign || '',
             locked:         block.dataset.locked === '1' ? 1 : 0,
             sort_order:     i,
+            z_index:        Math.max(1, parseInt(block.dataset.zIndex) || 1),
         });
     });
 

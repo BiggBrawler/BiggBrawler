@@ -186,10 +186,11 @@
                 elements.filter(function(e) { return e.type === 'section'; }).forEach(function(el) {
                     var s = document.createElement('div');
                     s.className    = 'section-block';
-                    s.style.left   = el.x_pos  + 'px';
-                    s.style.top    = el.y_pos   + 'px';
-                    s.style.width  = el.width   + 'px';
-                    s.style.height = el.height  + 'px';
+                    s.style.left    = el.x_pos  + 'px';
+                    s.style.top     = el.y_pos   + 'px';
+                    s.style.width   = el.width   + 'px';
+                    s.style.height  = el.height  + 'px';
+                    s.style.zIndex  = Math.max(1, parseInt(el.z_index) || 1);
                     if (el.section_bg) {
                         var _vbgP = el.section_bg.split('|');
                         var _vbgPath = _vbgP[0];
@@ -222,6 +223,7 @@
                     block.style.top    = el.y_pos   + 'px';
                     block.style.width  = el.width   + 'px';
                     block.style.height = el.height  + 'px';
+                    block.style.zIndex = Math.max(1, parseInt(el.z_index) || 1);
 
                     var content = el.asset_id ? el.db_content : el.manual_content;
                     var subtype = el.block_subtype || 'free';
