@@ -32,13 +32,14 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     background: <?= htmlspecialchars(BRAND_NAV_BG) ?>; padding: 0 16px; display: flex; align-items: center;
     gap: 14px; height: 46px; flex-shrink: 0; border-bottom: 1px solid <?= htmlspecialchars(BRAND_NAV_BORDER) ?>;
 }
-#top-nav .brand { font-weight: bold; font-size: 14px; color: <?= htmlspecialchars(BRAND_TEXT) ?>; margin-right: auto; }
+#top-nav .brand { font-weight: bold; font-size: 14px; color: <?= htmlspecialchars(BRAND_TEXT) ?>; }
+#top-nav .user-badge { margin-left: 20px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #bdc3c7; white-space: nowrap; flex-shrink: 0; }
+#top-nav .nav-spacer { flex: 1; }
 #top-nav a { color: #bdc3c7; text-decoration: none; font-size: 12px; padding: 5px 9px; border-radius: 3px; }
 #top-nav a:hover { background: #2c3e50; color: #fff; }
-#top-nav .user-info { font-size: 12px; color: #bdc3c7; }
 .role-tag { background: <?= $isAdmin ? '#e74c3c' : '#3498db' ?>; color: #fff;
             font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 8px;
-            text-transform: uppercase; margin-left: 4px; }
+            text-transform: uppercase; }
 .btn.publish-btn { background: <?= htmlspecialchars(BRAND_ACCENT) ?>; }
 
 /* ── Control bar ── */
@@ -305,12 +306,15 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
              style="max-height:32px; max-width:130px; object-fit:contain; flex-shrink:0;">
     <?php endif; ?>
     <span class="brand"><?= htmlspecialchars(SITE_NAME) ?></span>
-    <span class="role-tag" style="margin-left:20px;"><?= $isAdmin ? 'ADMIN' : 'USER' ?></span>
+    <span class="user-badge">
+        <?= htmlspecialchars($me['username']) ?>
+        <span class="role-tag"><?= $isAdmin ? 'ADMIN' : 'USER' ?></span>
+    </span>
+    <span class="nav-spacer"></span>
     <a href="crud.php">Asset Library</a>
     <?php if ($isAdmin): ?>
     <a href="admin_panel.php">Admin Panel</a>
     <?php endif; ?>
-    <span class="user-info"><?= htmlspecialchars($me['username']) ?></span>
     <a href="help.php" target="_blank">Help</a>
     <a href="viewer.php" target="_blank">View Display ↗</a>
     <a href="logout.php">Sign Out</a>
