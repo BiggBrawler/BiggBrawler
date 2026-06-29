@@ -772,6 +772,14 @@ function createBlock(type, subtype) {
     var def  = BLOCK_DEFAULTS[key] || {w:200,h:100};
     var parent = targetSection || document.getElementById('builder-canvas');
 
+    // Carousel width: 90% of section if inside one, otherwise 200px
+    if (type === 'carousel') {
+        var _cw = (parent && parent.classList && parent.classList.contains('section-block'))
+            ? Math.round(parent.offsetWidth * 0.9)
+            : 200;
+        def = { w: _cw, h: def.h };
+    }
+
     // For basic users: check if block fits within targeted section
     if (!IS_ADMIN && targetSection) {
         var sw = targetSection.offsetWidth;
