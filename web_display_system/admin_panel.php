@@ -497,11 +497,12 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
                         <input type="number" name="bs_<?= $t ?>_lh" value="<?= number_format(floatval($lh),2) ?>"
                                min="0.8" max="4" step="0.1" style="width:70px;" onchange="updatePreview('<?= $t ?>')">
                     </td>
-                    <td>
+                    <td style="max-width:220px; overflow:hidden; white-space:nowrap;">
                         <span class="preview-text" id="preview-<?= $t ?>"
                               style="font-family:<?= htmlspecialchars($ff) ?>; font-size:<?= intval($fs) ?>px;
                                      color:<?= htmlspecialchars($fc) ?>; font-weight:<?= htmlspecialchars($fw) ?>;
-                                     font-style:<?= htmlspecialchars($fi) ?>; line-height:<?= floatval($lh) ?>;">
+                                     font-style:<?= htmlspecialchars($fi) ?>; line-height:<?= floatval($lh) ?>;
+                                     display:inline-block; max-width:200px; overflow:hidden; white-space:nowrap; vertical-align:middle;">
                             <?= htmlspecialchars($label) ?>
                         </span>
                     </td>

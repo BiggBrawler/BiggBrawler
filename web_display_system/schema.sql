@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `canvas_settings` (
 CREATE TABLE IF NOT EXISTS `canvas_elements` (
   `id`             INT AUTO_INCREMENT PRIMARY KEY,
   `section_id`     INT   NULL     COMMENT 'Parent section ID; NULL = root level',
-  `type`           ENUM('section','text','image','video','carousel','marquee') NOT NULL,
+  `type`           ENUM('section','text','image','video','carousel','marquee','table') NOT NULL,
   `block_subtype`  ENUM('free','section_header','item_title','price','description') DEFAULT 'free',
   `x_pos`          INT          NOT NULL DEFAULT 0,
   `y_pos`          INT          NOT NULL DEFAULT 0,

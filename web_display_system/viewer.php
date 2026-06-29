@@ -103,7 +103,7 @@
     /* ── Table ── */
     .table-wrap { width:100%; height:100%; overflow:auto; }
     .table-wrap table { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .table-wrap td { padding:8px 10px; border:1px solid rgba(255,255,255,0.12); vertical-align:top; overflow:hidden; }
+    .table-wrap td { padding:8px 10px; border:1px solid rgba(255,255,255,0.2); vertical-align:top; overflow:hidden; background:rgba(0,0,0,0.25); }
 
     /* ── Marquee ── */
     .marquee-wrap {
@@ -283,7 +283,7 @@
                         block.appendChild(vid);
 
                     } else if (el.type === 'carousel') {
-                        renderCarousel(block, content);
+                        renderCarousel(block, content, blockStyles);
 
                     } else if (el.type === 'table') {
                         renderTable(block, content, blockStyles);
@@ -301,7 +301,7 @@
     }
 
     // ── Carousel ────────────────────────────────────────────────
-    function renderCarousel(block, content) {
+    function renderCarousel(block, content, blockStyles) {
         var data = {};
         try { data = JSON.parse(content || '{}'); } catch(e) {}
         var slides   = data.slides   || [];
@@ -311,10 +311,29 @@
         wrap.className = 'carousel-wrap';
 
         if (slides.length === 0) {
-            wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#666;font-family:Arial;font-size:18px;';
+            wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#aaa;font-family:Arial;font-size:18px;';
             wrap.textContent = 'Carousel — no slides added yet';
             block.appendChild(wrap);
             return;
+        }
+
+        // Helper: apply a blockStyles entry to an element, with CSS fallbacks
+        function applyStyle(el, styleKey, fallback) {
+            var bs = blockStyles && blockStyles[styleKey];
+            if (bs) {
+                el.style.fontFamily  = bs.font_family  || fallback.fontFamily  || 'Arial, sans-serif';
+                el.style.fontSize    = (bs.font_size   || fallback.fontSize  || 16) + 'px';
+                el.style.color       = bs.font_color   || fallback.color     || '#fff';
+                el.style.fontWeight  = bs.font_weight  || fallback.fontWeight || 'normal';
+                el.style.fontStyle   = bs.font_style   || fallback.fontStyle  || 'normal';
+                el.style.lineHeight  = bs.line_height  || fallback.lineHeight || 1.4;
+            } else {
+                el.style.fontFamily  = fallback.fontFamily  || 'Arial, sans-serif';
+                el.style.fontSize    = (fallback.fontSize  || 16) + 'px';
+                el.style.color       = fallback.color       || '#fff';
+                el.style.fontWeight  = fallback.fontWeight  || 'normal';
+                el.style.lineHeight  = fallback.lineHeight  || 1.4;
+            }
         }
 
         var slideEls = [];
@@ -347,25 +366,28 @@
             }
             slide.appendChild(imgWrap);
 
-            // Text panel (60%) — transparent background
+            // Text panel (60%) — transparent background, brand-styled text
             var panel = document.createElement('div');
             panel.className = 'carousel-text-panel';
             if (s.title !== null && s.title !== undefined && s.title !== '') {
                 var t = document.createElement('div');
                 t.className   = 'carousel-title';
                 t.textContent = s.title;
+                applyStyle(t, 'item_title', {fontFamily:'Arial,sans-serif', fontSize:26, color:'#f0f0f0', fontWeight:'bold', lineHeight:1.2});
                 panel.appendChild(t);
             }
             if (s.price !== null && s.price !== undefined && s.price !== '') {
                 var p = document.createElement('div');
                 p.className   = 'carousel-price';
                 p.textContent = s.price;
+                applyStyle(p, 'price', {fontFamily:'Arial,sans-serif', fontSize:28, color:'#f39c12', fontWeight:'bold', lineHeight:1.2});
                 panel.appendChild(p);
             }
             if (s.description !== null && s.description !== undefined && s.description !== '') {
                 var d = document.createElement('div');
                 d.className   = 'carousel-desc';
                 d.textContent = s.description;
+                applyStyle(d, 'description', {fontFamily:'Arial,sans-serif', fontSize:16, color:'#ccc', fontWeight:'normal', lineHeight:1.4});
                 panel.appendChild(d);
             }
             slide.appendChild(panel);
@@ -399,7 +421,7 @@
         var rows    = data.rows    || [];
 
         if (!headers.length || !rows.length) {
-            block.style.cssText += 'display:flex;align-items:center;justify-content:center;color:#666;font-family:Arial;font-size:14px;';
+            block.style.cssText += 'display:flex;align-items:center;justify-content:center;color:#aaa;font-family:Arial;font-size:14px;background:rgba(0,0,0,0.3);';
             block.textContent = 'Table — no data';
             return;
         }

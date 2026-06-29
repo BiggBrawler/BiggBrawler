@@ -15,6 +15,8 @@ $isAdmin = isAdmin();
 
 // Auto-migrate: add text_align column if not yet present
 try { $pdo->exec("ALTER TABLE canvas_elements ADD COLUMN text_align VARCHAR(16) NOT NULL DEFAULT ''"); } catch(Exception $e) {}
+// Auto-migrate: add 'table' to type ENUM if not already present
+try { $pdo->exec("ALTER TABLE canvas_elements MODIFY COLUMN type ENUM('section','text','image','video','carousel','marquee','table') NOT NULL"); } catch(Exception $e) {}
 
 // ---- Upload whitelists ----
 define('IMG_EXT',  ['jpg','jpeg','png','gif','webp']);
