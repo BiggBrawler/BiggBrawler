@@ -99,19 +99,6 @@
         font-size: 0.88em;
         line-height: 1.4;
     }
-    /* Slide counter dots */
-    .carousel-dots {
-        position: absolute;
-        bottom: 8px; right: 10px;
-        display: flex; gap: 5px; z-index: 10;
-    }
-    .carousel-dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.35);
-        transition: background 0.3s;
-    }
-    .carousel-dot.active { background: #fff; }
 
     /* ── Marquee ── */
     .marquee-wrap {
@@ -379,18 +366,6 @@
             slideEls.push(slide);
         });
 
-        // Dot indicators
-        if (slides.length > 1) {
-            var dots = document.createElement('div');
-            dots.className = 'carousel-dots';
-            slideEls.forEach(function(_, i) {
-                var dot = document.createElement('div');
-                dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
-                dots.appendChild(dot);
-            });
-            wrap.appendChild(dots);
-        }
-
         block.appendChild(wrap);
 
         // Activate first slide immediately
@@ -398,14 +373,11 @@
         if (slideEls.length < 2) return;
 
         var current = 0;
-        var dotEls  = wrap.querySelectorAll('.carousel-dot');
 
         var timer = setInterval(function() {
             slideEls[current].classList.remove('active');
-            if (dotEls[current]) dotEls[current].classList.remove('active');
             current = (current + 1) % slideEls.length;
             slideEls[current].classList.add('active');
-            if (dotEls[current]) dotEls[current].classList.add('active');
         }, interval);
 
         _carouselTimers.push(timer);
