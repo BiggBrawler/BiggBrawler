@@ -185,11 +185,11 @@ if (isset($_GET['restart'])) {
         <form method="POST">
             <label>6-Digit Code</label>
             <input type="text" name="passcode" class="passcode-input" maxlength="6"
-                   inputmode="numeric" pattern="[0-9]{6}" autofocus required>
+                   inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" autofocus required>
             <label>New Password (min 8 characters)</label>
-            <input type="password" name="new_password" required>
+            <input type="password" name="new_password" autocomplete="new-password" required>
             <label>Confirm New Password</label>
-            <input type="password" name="confirm" required>
+            <input type="password" name="confirm" autocomplete="new-password" required>
             <button type="submit" name="do_reset" class="btn">Reset Password</button>
         </form>
         <div class="links"><a href="reset_password.php?restart=1">Start over</a></div>
