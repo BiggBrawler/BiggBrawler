@@ -76,7 +76,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 
 /* ── Canvas wrapper ── */
 #editor-frame { flex: 1; overflow: auto; padding: 40px; display: flex;
-                justify-content: flex-start; align-items: flex-start; }
+                justify-content: flex-start; align-items: flex-start; user-select: none; }
 
 #builder-canvas {
     width: 1920px; height: 1080px; background: #fff; position: relative;
@@ -140,7 +140,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 /* Text blocks */
 .text-inner {
     width: 100%; height: 100%; padding: 4px; outline: none;
-    word-break: break-word; overflow: hidden;
+    word-break: break-word; overflow: hidden; user-select: none;
 }
 .text-inner[contenteditable="true"] { cursor: text; }
 
@@ -268,7 +268,6 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     <a href="crud.php">Asset Library</a>
     <?php if ($isAdmin): ?>
     <a href="admin_panel.php">Admin Panel</a>
-    <a href="admin_panel.php?tab=branding">Branding</a>
     <?php endif; ?>
     <span class="user-info"><?= htmlspecialchars($me['username']) ?></span>
     <a href="help.php" target="_blank">Help</a>
@@ -385,7 +384,16 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <label>Section Background Image</label>
         <input type="file" id="section-bg-file" accept="image/*" onchange="uploadSectionBg(this)">
         <div id="section-bg-preview" style="margin-top:4px; font-size:11px; color:#bdc3c7;"></div>
-        <button class="btn danger" style="width:100%; margin-top:6px; font-size:12px;"
+        <label style="margin-top:8px;">Background Fit</label>
+        <select id="section-bg-fit" onchange="changeSectionBgFit(this.value)"
+                style="width:100%;padding:6px 8px;border-radius:4px;border:1px solid #34495e;background:#2c3e50;color:#fff;font-size:13px;margin-top:2px;">
+            <option value="cover">Cover — crop to fill</option>
+            <option value="contain">Contain — whole image</option>
+            <option value="fill">Stretch to fill</option>
+            <option value="tile">Tile (repeat)</option>
+            <option value="center">Center (no scale)</option>
+        </select>
+        <button class="btn danger" style="width:100%; margin-top:8px; font-size:12px;"
                 onclick="clearSectionBg()">Remove Background</button>
     </div>
 
@@ -692,9 +700,11 @@ function applyBgFile() {
 // ============================================================
 function createSection() {
     if (!IS_ADMIN) return;
+    var def    = BLOCK_DEFAULTS.section || {w:600, h:380};
+    var center = getCanvasDropCenter(def.w, def.h, null);
     renderSection({
         type:'section', temp_id: tmpId(), db_id: null,
-        x_pos:80, y_pos:80, width:600, height:380, section_bg:null, locked:0
+        x_pos: center.x, y_pos: center.y, width: def.w, height: def.h, section_bg: null, locked: 0
     });
 }
 
@@ -706,14 +716,23 @@ function renderSection(el) {
     s.dataset.tempId  = el.temp_id || tmpId();
     s.dataset.dbId    = el.id      || '';
     s.dataset.locked  = el.locked  || 0;
-    s.dataset.sectionBg = el.section_bg || '';
+
+    // Parse path|fit format for section background
+    var _bgRaw   = el.section_bg || '';
+    var _bgParts = _bgRaw.split('|');
+    var _bgPath  = _bgParts[0];
+    var _bgFit   = _bgParts[1] || 'cover';
+    s.dataset.sectionBg = _bgPath;
+    s.dataset.bgFit     = _bgFit;
+
     s.style.width     = el.width  + 'px';
     s.style.height    = el.height + 'px';
     s.style.transform = 'translate('+el.x_pos+'px,'+el.y_pos+'px)';
     s.setAttribute('data-x', el.x_pos);
     s.setAttribute('data-y', el.y_pos);
-    if (el.section_bg) {
-        s.style.backgroundImage = "url('"+el.section_bg+"')";
+    if (_bgPath) {
+        s.style.backgroundImage = "url('"+_bgPath+"')";
+        applySectionBgFit(s, _bgFit);
     }
     // Label
     var lbl = document.createElement('div');
@@ -725,8 +744,15 @@ function renderSection(el) {
 
     s.addEventListener('mousedown', function(e) {
         if (e.target.closest('.child-block')) return;
-        if (IS_ADMIN) selectBlock(s);
-        setTargetSection(s);
+        if (IS_ADMIN) {
+            if (e.shiftKey) {
+                e.preventDefault();
+                toggleMultiSel(s);
+            } else {
+                selectBlock(s);
+            }
+        }
+        if (!e.shiftKey) setTargetSection(s);
     });
     addResizeHandles(s);
     document.getElementById('builder-canvas').appendChild(s);
@@ -756,9 +782,10 @@ function createBlock(type, subtype) {
         }
     }
 
+    var center = getCanvasDropCenter(def.w, def.h, parent);
     var el = {
         type: type, block_subtype: subtype || 'free',
-        x_pos: 10, y_pos: 10, width: def.w, height: def.h,
+        x_pos: center.x, y_pos: center.y, width: def.w, height: def.h,
         manual_content: type==='text' ? (subtype ? 'Enter text here' : 'Double-click to edit') : '',
         asset_id: null, locked: 0,
         font_family: 'Arial', font_size: 16, font_color: '#000000',
@@ -800,10 +827,16 @@ function renderBlock(el, parent) {
             if (_shiftDown || multiSel.length > 0) { inner.blur(); return; }
             if (block !== activeBlock) selectBlock(block);
         });
-        inner.addEventListener('blur',  function() { inner.style.pointerEvents = 'none'; });
+        inner.addEventListener('blur',  function() {
+            inner.style.pointerEvents = 'none';
+            inner.style.userSelect = '';
+            inner.style.webkitUserSelect = '';
+        });
         block.addEventListener('dblclick', function(e) {
             if (block.dataset.locked === '1' || _shiftDown || e.target.closest('.rh')) return;
             inner.style.pointerEvents = 'auto';
+            inner.style.userSelect = 'text';
+            inner.style.webkitUserSelect = 'text';
             inner.focus();
             if (document.caretRangeFromPoint) {
                 var range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -922,6 +955,7 @@ function showInspector(block) {
     if (isSection && IS_ADMIN) {
         var bg = block.dataset.sectionBg || '';
         document.getElementById('section-bg-preview').textContent = bg || 'No background set';
+        document.getElementById('section-bg-fit').value = block.dataset.bgFit || 'cover';
     }
 
     // WYSIWYG – admin + free text only
@@ -1001,8 +1035,6 @@ function showInspector(block) {
 // MULTI-SELECT
 // ============================================================
 function toggleMultiSel(block) {
-    if (block.dataset.type === 'section') return;
-
     // Absorb the single-selected block into multiSel before toggling the new one
     if (activeBlock && multiSel.indexOf(activeBlock) < 0) {
         activeBlock.classList.remove('selected');
@@ -1143,7 +1175,22 @@ function setupCanvas() {
         clearTargetSection();
     });
     document.addEventListener('selectionchange', trackSelection);
-    document.addEventListener('keydown', function(e) { if (e.key === 'Shift') _shiftDown = true;  });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Shift') _shiftDown = true;
+        if (e.key === 'Delete') {
+            var ae = document.activeElement;
+            if (ae && (ae.classList.contains('text-inner') || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return;
+            if (activeBlock) {
+                var msg = activeBlock.dataset.type === 'section'
+                    ? 'Delete this section and ALL blocks inside it?'
+                    : 'Delete this block?';
+                if (confirm(msg)) {
+                    activeBlock.remove();
+                    deselectAll();
+                }
+            }
+        }
+    });
     document.addEventListener('keyup',   function(e) { if (e.key === 'Shift') _shiftDown = false; });
 }
 
@@ -1187,6 +1234,36 @@ function updateStyle(prop, val) {
 // ============================================================
 // SECTION BACKGROUND
 // ============================================================
+function applySectionBgFit(block, fit) {
+    if (fit === 'contain') {
+        block.style.backgroundSize     = 'contain';
+        block.style.backgroundRepeat   = 'no-repeat';
+        block.style.backgroundPosition = 'center';
+    } else if (fit === 'fill') {
+        block.style.backgroundSize     = '100% 100%';
+        block.style.backgroundRepeat   = 'no-repeat';
+        block.style.backgroundPosition = 'center';
+    } else if (fit === 'tile') {
+        block.style.backgroundSize     = 'auto';
+        block.style.backgroundRepeat   = 'repeat';
+        block.style.backgroundPosition = 'top left';
+    } else if (fit === 'center') {
+        block.style.backgroundSize     = 'auto';
+        block.style.backgroundRepeat   = 'no-repeat';
+        block.style.backgroundPosition = 'center';
+    } else { // cover (default)
+        block.style.backgroundSize     = 'cover';
+        block.style.backgroundRepeat   = 'no-repeat';
+        block.style.backgroundPosition = 'center';
+    }
+}
+
+function changeSectionBgFit(fit) {
+    if (!IS_ADMIN || !activeBlock || activeBlock.dataset.type !== 'section') return;
+    activeBlock.dataset.bgFit = fit;
+    applySectionBgFit(activeBlock, fit);
+}
+
 function uploadSectionBg(input) {
     if (!IS_ADMIN || !activeBlock || !input.files[0]) return;
     var fd = new FormData();
@@ -1195,8 +1272,11 @@ function uploadSectionBg(input) {
         .then(function(r){ return r.json(); })
         .then(function(res) {
             if (res.status==='success') {
+                var _fit = (document.getElementById('section-bg-fit') || {}).value || 'cover';
                 activeBlock.style.backgroundImage = "url('"+res.path+"')";
                 activeBlock.dataset.sectionBg = res.path;
+                activeBlock.dataset.bgFit = _fit;
+                applySectionBgFit(activeBlock, _fit);
                 document.getElementById('section-bg-preview').textContent = res.path;
             } else { showToast(res.message||'Upload failed.', true); }
         });
@@ -1206,7 +1286,10 @@ function clearSectionBg() {
     if (!IS_ADMIN || !activeBlock) return;
     activeBlock.style.backgroundImage = 'none';
     activeBlock.dataset.sectionBg = '';
+    activeBlock.dataset.bgFit = 'cover';
     document.getElementById('section-bg-preview').textContent = 'No background set';
+    var fitSel = document.getElementById('section-bg-fit');
+    if (fitSel) fitSel.value = 'cover';
 }
 
 // ============================================================
@@ -1294,6 +1377,8 @@ function publishCanvas() {
 
     // Collect sections (admin only publishes section data)
     canvas.querySelectorAll(':scope > .section-block').forEach(function(s) {
+        var _sbPath = s.dataset.sectionBg || '';
+        var _sbFit  = s.dataset.bgFit     || 'cover';
         elements.push({
             type:       'section',
             temp_id:    s.dataset.tempId,
@@ -1301,7 +1386,7 @@ function publishCanvas() {
             y_pos:      Math.round(parseFloat(s.getAttribute('data-y'))||0),
             width:      Math.round(s.offsetWidth),
             height:     Math.round(s.offsetHeight),
-            section_bg: s.dataset.sectionBg || null,
+            section_bg: _sbPath ? (_sbPath + '|' + _sbFit) : null,
             locked:     s.dataset.locked === '1' ? 1 : 0,
             sort_order: 0,
         });
@@ -1543,6 +1628,25 @@ function changeImageFit(fit) {
 
 function tmpId() { return 'tmp-' + Math.random().toString(36).substr(2,9); }
 
+function getCanvasDropCenter(defW, defH, parent) {
+    var frame  = document.getElementById('editor-frame');
+    var canvas = document.getElementById('builder-canvas');
+    var PAD    = 40;
+    if (parent && parent.classList && parent.classList.contains('section-block')) {
+        var sw = parent.offsetWidth;
+        var sh = parent.offsetHeight;
+        return {
+            x: Math.max(0, Math.round((sw - defW) / 2)),
+            y: Math.max(0, Math.round((sh - defH) / 2))
+        };
+    }
+    var cx = Math.round(frame.scrollLeft + frame.clientWidth  / 2 - PAD - defW / 2);
+    var cy = Math.round(frame.scrollTop  + frame.clientHeight / 2 - PAD - defH / 2);
+    cx = Math.max(0, Math.min(cx, canvas.offsetWidth  - defW));
+    cy = Math.max(0, Math.min(cy, canvas.offsetHeight - defH));
+    return { x: cx, y: cy };
+}
+
 function rgbToHex(rgb) {
     if (!rgb || rgb.startsWith('#')) return rgb||'#000000';
     var m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
@@ -1576,7 +1680,9 @@ function showToast(msg, isErr) {
 // CAROUSEL PREVIEW + MODAL
 // ============================================================
 function buildCarouselPreview(block, data) {
-    block.innerHTML = '';
+    Array.from(block.children).forEach(function(child) {
+        if (!child.classList.contains('rh') && !child.classList.contains('lock-icon')) child.remove();
+    });
     var slides   = (data && data.slides) || [];
     var preview  = document.createElement('div');
     preview.className = 'carousel-preview';
@@ -1613,33 +1719,92 @@ function addSlideRow(data) {
     var n    = list.children.length + 1;
     var div  = document.createElement('div');
     div.className = 'slide-row';
-    var imgVal  = escHtml(data.image       || '');
+
+    var titleDel = data.title === null;
+    var priceDel = data.price === null;
+    var descDel  = data.description === null;
+    var titleVal = titleDel ? '' : escHtml(data.title || '');
+    var priceVal = priceDel ? '' : escHtml(data.price || '');
+    var descVal  = descDel  ? '' : escHtml(data.description || '');
+    var textPos  = data.textPosition || 'right';
+
     var imgHtml = data.image
         ? '<img src="'+escHtml(data.image)+'" style="max-width:100%;max-height:60px;object-fit:contain;">'
         : 'No image';
+
     div.innerHTML =
         '<div class="slide-header">Slide ' + n +
-            ' <button class="btn danger" style="font-size:11px;padding:3px 8px;" onclick="removeSlideRow(this)">Remove</button>' +
+            ' <button class="btn danger" style="font-size:11px;padding:3px 8px;" onclick="removeSlideRow(this)">Remove Slide</button>' +
         '</div>' +
         '<div class="slide-fields">' +
             '<div class="slide-field">' +
                 '<label>Image</label>' +
                 '<div class="slide-img-preview">' + imgHtml + '</div>' +
                 '<input type="file" accept="image/*" onchange="uploadSlideImage(this)" style="font-size:12px;color:#aaa;">' +
-                '<input type="hidden" class="slide-img-path" value="' + imgVal + '">' +
+                '<input type="hidden" class="slide-img-path" value="' + escHtml(data.image || '') + '">' +
             '</div>' +
             '<div class="slide-field">' +
-                '<label>Title</label>' +
-                '<input type="text" class="slide-title" value="' + escHtml(data.title || '') + '">' +
-                '<label style="margin-top:6px;">Price</label>' +
-                '<input type="text" class="slide-price" value="' + escHtml(data.price || '') + '">' +
+                '<label>Text Position</label>' +
+                '<select class="slide-text-pos" style="width:100%;padding:6px;background:#2c3e50;color:#fff;border:1px solid #34495e;border-radius:3px;font-size:13px;">' +
+                    '<option value="right"'  + (textPos==='right'  ?' selected':'') + '>Right of image</option>' +
+                    '<option value="left"'   + (textPos==='left'   ?' selected':'') + '>Left of image</option>' +
+                    '<option value="bottom"' + (textPos==='bottom' ?' selected':'') + '>Below image</option>' +
+                    '<option value="top"'    + (textPos==='top'    ?' selected':'') + '>Above image</option>' +
+                '</select>' +
             '</div>' +
             '<div class="slide-field" style="grid-column:1/-1;">' +
-                '<label>Description</label>' +
-                '<textarea class="slide-desc" rows="2">' + escHtml(data.description || '') + '</textarea>' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
+                    '<label style="margin:0;">Title</label>' +
+                    (titleDel
+                        ? '<button class="btn gray" style="font-size:10px;padding:2px 7px;" onclick="restoreSlideField(this,\'title\')">+ Restore</button>'
+                        : '<button class="btn danger" style="font-size:10px;padding:2px 7px;" onclick="deleteSlideField(this,\'title\')">&#10005; Delete</button>') +
+                '</div>' +
+                '<input type="text" class="slide-title" value="' + titleVal + '"' +
+                    (titleDel ? ' disabled style="opacity:0.3;"' : '') +
+                    ' data-deleted="' + (titleDel ? '1' : '0') + '">' +
+            '</div>' +
+            '<div class="slide-field" style="grid-column:1/-1;">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
+                    '<label style="margin:0;">Price</label>' +
+                    (priceDel
+                        ? '<button class="btn gray" style="font-size:10px;padding:2px 7px;" onclick="restoreSlideField(this,\'price\')">+ Restore</button>'
+                        : '<button class="btn danger" style="font-size:10px;padding:2px 7px;" onclick="deleteSlideField(this,\'price\')">&#10005; Delete</button>') +
+                '</div>' +
+                '<input type="text" class="slide-price" value="' + priceVal + '"' +
+                    (priceDel ? ' disabled style="opacity:0.3;"' : '') +
+                    ' data-deleted="' + (priceDel ? '1' : '0') + '">' +
+            '</div>' +
+            '<div class="slide-field" style="grid-column:1/-1;">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
+                    '<label style="margin:0;">Description</label>' +
+                    (descDel
+                        ? '<button class="btn gray" style="font-size:10px;padding:2px 7px;" onclick="restoreSlideField(this,\'desc\')">+ Restore</button>'
+                        : '<button class="btn danger" style="font-size:10px;padding:2px 7px;" onclick="deleteSlideField(this,\'desc\')">&#10005; Delete</button>') +
+                '</div>' +
+                '<textarea class="slide-desc" rows="2"' +
+                    (descDel ? ' disabled style="opacity:0.3;"' : '') +
+                    ' data-deleted="' + (descDel ? '1' : '0') + '">' + descVal + '</textarea>' +
             '</div>' +
         '</div>';
     list.appendChild(div);
+}
+
+function deleteSlideField(btn, field) {
+    var sf  = btn.closest('.slide-field');
+    var inp = sf.querySelector('input[type="text"], textarea');
+    if (inp) { inp.disabled = true; inp.style.opacity = '0.3'; inp.dataset.deleted = '1'; inp.value = ''; }
+    btn.innerHTML = '+ Restore';
+    btn.classList.remove('danger'); btn.classList.add('gray');
+    btn.setAttribute('onclick', "restoreSlideField(this,'" + field + "')");
+}
+
+function restoreSlideField(btn, field) {
+    var sf  = btn.closest('.slide-field');
+    var inp = sf.querySelector('input[type="text"], textarea');
+    if (inp) { inp.disabled = false; inp.style.opacity = ''; inp.dataset.deleted = '0'; }
+    btn.innerHTML = '&#10005; Delete';
+    btn.classList.remove('gray'); btn.classList.add('danger');
+    btn.setAttribute('onclick', "deleteSlideField(this,'" + field + "')");
 }
 
 function removeSlideRow(btn) {
@@ -1673,11 +1838,15 @@ function saveCarouselSlides() {
     var rows   = document.querySelectorAll('#carousel-slides-list .slide-row');
     var slides = [];
     rows.forEach(function(row) {
+        var titleInp = row.querySelector('.slide-title');
+        var priceInp = row.querySelector('.slide-price');
+        var descInp  = row.querySelector('.slide-desc');
         slides.push({
-            image:       (row.querySelector('.slide-img-path') || {}).value || '',
-            title:       (row.querySelector('.slide-title')    || {}).value || '',
-            price:       (row.querySelector('.slide-price')    || {}).value || '',
-            description: (row.querySelector('.slide-desc')     || {}).value || '',
+            image:        (row.querySelector('.slide-img-path') || {}).value || '',
+            textPosition: (row.querySelector('.slide-text-pos') || {}).value || 'right',
+            title:        titleInp && titleInp.dataset.deleted === '1' ? null : (titleInp ? titleInp.value : ''),
+            price:        priceInp && priceInp.dataset.deleted === '1' ? null : (priceInp ? priceInp.value : ''),
+            description:  descInp  && descInp.dataset.deleted  === '1' ? null : (descInp  ? descInp.value  : ''),
         });
     });
     var interval = Math.max(1000, (parseFloat(document.getElementById('carousel-interval').value) || 5) * 1000);
@@ -1703,7 +1872,9 @@ function updateCarouselInterval(val) {
 // MARQUEE PREVIEW + INSPECTOR UPDATES
 // ============================================================
 function buildMarqueePreview(block, data) {
-    block.innerHTML = '';
+    Array.from(block.children).forEach(function(child) {
+        if (!child.classList.contains('rh') && !child.classList.contains('lock-icon')) child.remove();
+    });
     var d      = data || {};
     var text   = d.text   || 'Marquee text — click to edit in inspector';
     var color  = d.color  || '#ffffff';

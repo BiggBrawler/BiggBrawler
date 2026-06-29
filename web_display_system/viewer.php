@@ -42,28 +42,40 @@
         position: relative;
         width: 100%; height: 100%;
         overflow: hidden;
-        background: #000;
     }
     .carousel-slide {
         position: absolute;
         inset: 0;
         display: flex;
-        flex-direction: column;
         opacity: 0;
         transition: opacity 0.8s ease-in-out;
         overflow: hidden;
     }
     .carousel-slide.active { opacity: 1; }
-    .carousel-slide img {
+    /* Text position variants */
+    .carousel-slide.pos-right  { flex-direction: row; }
+    .carousel-slide.pos-left   { flex-direction: row-reverse; }
+    .carousel-slide.pos-bottom { flex-direction: column; }
+    .carousel-slide.pos-top    { flex-direction: column-reverse; }
+    /* Image wrap — 40% of space */
+    .carousel-img-wrap { flex-shrink: 0; overflow: hidden; }
+    .carousel-slide.pos-right  .carousel-img-wrap,
+    .carousel-slide.pos-left   .carousel-img-wrap { width: 40%; height: 100%; }
+    .carousel-slide.pos-bottom .carousel-img-wrap,
+    .carousel-slide.pos-top    .carousel-img-wrap { width: 100%; height: 40%; }
+    .carousel-img-wrap img {
         width: 100%; height: 100%;
         object-fit: cover; display: block;
-        flex-shrink: 0;
     }
-    .carousel-info {
-        position: absolute;
-        bottom: 0; left: 0; right: 0;
-        background: linear-gradient(transparent, rgba(0,0,0,0.82));
-        padding: 14px 18px 12px;
+    /* Text panel — 60% of space, transparent background */
+    .carousel-text-panel {
+        flex: 1;
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 16px 22px;
+        overflow: hidden;
     }
     .carousel-title {
         font-family: Arial, sans-serif;
@@ -71,7 +83,7 @@
         color: #f0f0f0;
         font-size: 1.4em;
         line-height: 1.2;
-        margin-bottom: 2px;
+        margin-bottom: 4px;
     }
     .carousel-price {
         font-family: Arial, sans-serif;
@@ -79,7 +91,7 @@
         color: #f39c12;
         font-size: 1.6em;
         line-height: 1.2;
-        margin-bottom: 3px;
+        margin-bottom: 6px;
     }
     .carousel-desc {
         font-family: Arial, sans-serif;
@@ -87,11 +99,11 @@
         font-size: 0.88em;
         line-height: 1.4;
     }
-    /* Slide counter dot */
+    /* Slide counter dots */
     .carousel-dots {
         position: absolute;
-        top: 8px; right: 10px;
-        display: flex; gap: 5px;
+        bottom: 8px; right: 10px;
+        display: flex; gap: 5px; z-index: 10;
     }
     .carousel-dot {
         width: 8px; height: 8px;
@@ -187,7 +199,21 @@
                     s.style.width  = el.width   + 'px';
                     s.style.height = el.height  + 'px';
                     if (el.section_bg) {
-                        s.style.backgroundImage = "url('" + el.section_bg + "')";
+                        var _vbgP = el.section_bg.split('|');
+                        var _vbgPath = _vbgP[0];
+                        var _vbgFit  = _vbgP[1] || 'cover';
+                        s.style.backgroundImage = "url('" + _vbgPath + "')";
+                        if (_vbgFit === 'contain') {
+                            s.style.backgroundSize = 'contain'; s.style.backgroundRepeat = 'no-repeat'; s.style.backgroundPosition = 'center';
+                        } else if (_vbgFit === 'fill') {
+                            s.style.backgroundSize = '100% 100%'; s.style.backgroundRepeat = 'no-repeat'; s.style.backgroundPosition = 'center';
+                        } else if (_vbgFit === 'tile') {
+                            s.style.backgroundSize = 'auto'; s.style.backgroundRepeat = 'repeat'; s.style.backgroundPosition = 'top left';
+                        } else if (_vbgFit === 'center') {
+                            s.style.backgroundSize = 'auto'; s.style.backgroundRepeat = 'no-repeat'; s.style.backgroundPosition = 'center';
+                        } else {
+                            s.style.backgroundSize = 'cover'; s.style.backgroundRepeat = 'no-repeat'; s.style.backgroundPosition = 'center';
+                        }
                     }
                     canvas.appendChild(s);
                     sectionMap[el.id] = s;
@@ -284,7 +310,7 @@
         var data = {};
         try { data = JSON.parse(content || '{}'); } catch(e) {}
         var slides   = data.slides   || [];
-        var interval = Math.max(500, data.interval || 5000);  // minimum 500ms
+        var interval = Math.max(500, data.interval || 5000);
 
         var wrap = document.createElement('div');
         wrap.className = 'carousel-wrap';
@@ -298,42 +324,45 @@
 
         var slideEls = [];
         slides.forEach(function(s) {
+            var pos   = s.textPosition || 'right';
             var slide = document.createElement('div');
-            slide.className = 'carousel-slide';
+            slide.className = 'carousel-slide pos-' + pos;
 
+            // Image wrap (40%)
+            var imgWrap = document.createElement('div');
+            imgWrap.className = 'carousel-img-wrap';
             if (s.image) {
                 var img = document.createElement('img');
                 img.src = s.image;
                 img.alt = s.title || '';
-                slide.appendChild(img);
+                imgWrap.appendChild(img);
             } else {
-                slide.style.background = '#1a1a2e';
+                imgWrap.style.background = '#1a1a2e';
             }
+            slide.appendChild(imgWrap);
 
-            var hasInfo = s.title || s.price || s.description;
-            if (hasInfo) {
-                var info = document.createElement('div');
-                info.className = 'carousel-info';
-                if (s.title) {
-                    var t = document.createElement('div');
-                    t.className   = 'carousel-title';
-                    t.textContent = s.title;
-                    info.appendChild(t);
-                }
-                if (s.price) {
-                    var p = document.createElement('div');
-                    p.className   = 'carousel-price';
-                    p.textContent = s.price;
-                    info.appendChild(p);
-                }
-                if (s.description) {
-                    var d = document.createElement('div');
-                    d.className   = 'carousel-desc';
-                    d.textContent = s.description;
-                    info.appendChild(d);
-                }
-                slide.appendChild(info);
+            // Text panel (60%) — transparent background
+            var panel = document.createElement('div');
+            panel.className = 'carousel-text-panel';
+            if (s.title !== null && s.title !== undefined && s.title !== '') {
+                var t = document.createElement('div');
+                t.className   = 'carousel-title';
+                t.textContent = s.title;
+                panel.appendChild(t);
             }
+            if (s.price !== null && s.price !== undefined && s.price !== '') {
+                var p = document.createElement('div');
+                p.className   = 'carousel-price';
+                p.textContent = s.price;
+                panel.appendChild(p);
+            }
+            if (s.description !== null && s.description !== undefined && s.description !== '') {
+                var d = document.createElement('div');
+                d.className   = 'carousel-desc';
+                d.textContent = s.description;
+                panel.appendChild(d);
+            }
+            slide.appendChild(panel);
 
             wrap.appendChild(slide);
             slideEls.push(slide);

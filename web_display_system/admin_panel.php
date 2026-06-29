@@ -288,8 +288,8 @@ $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New 
 
 <div class="tabs">
     <button class="tab-btn <?= $tab==='users'    ?'active':'' ?>" onclick="showTab('users')">User Management</button>
-    <button class="tab-btn <?= $tab==='brand'    ?'active':'' ?>" onclick="showTab('brand')">Brand Standards</button>
-    <button class="tab-btn <?= $tab==='branding' ?'active':'' ?>" onclick="showTab('branding')">Branding</button>
+    <button class="tab-btn <?= $tab==='brand'    ?'active':'' ?>" onclick="showTab('brand')">Display Branding</button>
+    <button class="tab-btn <?= $tab==='branding' ?'active':'' ?>" onclick="showTab('branding')">Site Branding</button>
     <button class="tab-btn <?= $tab==='settings' ?'active':'' ?>" onclick="showTab('settings')">Settings</button>
 </div>
 
