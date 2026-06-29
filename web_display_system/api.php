@@ -17,6 +17,8 @@ $isAdmin = isAdmin();
 try { $pdo->exec("ALTER TABLE canvas_elements ADD COLUMN text_align VARCHAR(16) NOT NULL DEFAULT ''"); } catch(Exception $e) {}
 // Auto-migrate: add 'table' to type ENUM if not already present
 try { $pdo->exec("ALTER TABLE canvas_elements MODIFY COLUMN type ENUM('section','text','image','video','carousel','marquee','table') NOT NULL"); } catch(Exception $e) {}
+// Auto-migrate: seed item_title_2 and price_2 block styles
+try { $pdo->exec("INSERT IGNORE INTO block_styles (block_type,font_family,font_size,font_color,font_weight,font_style,line_height) VALUES ('item_title_2','Arial',24,'#27ae60','bold','normal',1.30),('price_2','Arial',30,'#e74c3c','bold','normal',1.20)"); } catch(Exception $e) {}
 
 // ---- Upload whitelists ----
 define('IMG_EXT',  ['jpg','jpeg','png','gif','webp']);
@@ -135,8 +137,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
     try {
         // Only admin updates canvas background
         if ($isAdmin) {
-            $pdo->prepare("UPDATE canvas_settings SET bg_type=?, bg_val=? WHERE id=1")
-                ->execute([$bgType, $bgVal]);
+            if ($bgType === 'image' && !isset($_FILES['bg_file'])) {
+                // No new file uploaded — preserve existing image path, only update type
+                $pdo->prepare("UPDATE canvas_settings SET bg_type=? WHERE id=1")->execute([$bgType]);
+            } else {
+                $pdo->prepare("UPDATE canvas_settings SET bg_type=?, bg_val=? WHERE id=1")->execute([$bgType, $bgVal]);
+            }
         }
 
         // Clear children first (self-referential FK), then all elements
@@ -240,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_brand_styles') {
     if (!$isAdmin) { echo json_encode(['status'=>'error','message'=>'Admins only.']); exit; }
     $data   = json_decode($_POST['styles_data'] ?? '[]', true) ?: [];
-    $allowed = ['section_header','item_title','price','description'];
+    $allowed = ['section_header','item_title','item_title_2','price','price_2','description'];
     $stmt   = $pdo->prepare(
         "UPDATE block_styles SET font_family=?, font_size=?, font_color=?, font_weight=?, font_style=?, line_height=? WHERE block_type=?"
     );

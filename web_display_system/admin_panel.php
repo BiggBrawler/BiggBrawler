@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Save brand standards
     if (isset($_POST['action_save_styles'])) {
-        $types = ['section_header','item_title','price','description'];
+        $types = ['section_header','item_title','item_title_2','price','price_2','description'];
         $stmt  = $pdo->prepare(
             "UPDATE block_styles SET font_family=?, font_size=?, font_color=?, font_weight=?, font_style=?, line_height=? WHERE block_type=?"
         );
@@ -191,7 +191,9 @@ foreach ($pdo->query("SELECT * FROM block_styles")->fetchAll() as $s) {
 $typeLabels = [
     'section_header' => 'Section Header',
     'item_title'     => 'Item Title',
+    'item_title_2'   => 'Item Title 2',
     'price'          => 'Price',
+    'price_2'        => 'Price 2',
     'description'    => 'Description',
 ];
 $fontFamilies = ['Arial','Georgia','Verdana','Tahoma','Trebuchet MS','Times New Roman','Courier New','Impact'];

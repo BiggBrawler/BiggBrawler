@@ -103,7 +103,7 @@
     /* ── Table ── */
     .table-wrap { width:100%; height:100%; overflow:auto; }
     .table-wrap table { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .table-wrap td { padding:8px 10px; border:1px solid rgba(255,255,255,0.2); vertical-align:top; overflow:hidden; background:rgba(0,0,0,0.25); }
+    .table-wrap td { padding:8px 10px; overflow:hidden; }
 
     /* ── Marquee ── */
     .marquee-wrap {
@@ -419,6 +419,8 @@
         try { data = JSON.parse(content || '{}'); } catch(e) {}
         var headers = data.headers || [];
         var rows    = data.rows    || [];
+        var valigns = data.valigns || [];
+        var haligns = data.haligns || [];
 
         if (!headers.length || !rows.length) {
             block.style.cssText += 'display:flex;align-items:center;justify-content:center;color:#aaa;font-family:Arial;font-size:14px;background:rgba(0,0,0,0.3);';
@@ -447,6 +449,8 @@
                     td.style.fontSize   = '16px';
                     td.style.color      = '#fff';
                 }
+                td.style.verticalAlign = valigns[ci] || 'top';
+                td.style.textAlign     = haligns[ci] || 'left';
                 td.textContent = (row[ci] !== undefined && row[ci] !== null) ? row[ci] : '';
                 tr.appendChild(td);
             });

@@ -90,7 +90,9 @@ ON DUPLICATE KEY UPDATE id = id;
 INSERT INTO `block_styles` (`block_type`, `font_family`, `font_size`, `font_color`, `font_weight`, `font_style`, `line_height`) VALUES
   ('section_header', 'Arial', 36, '#ffffff', 'bold',   'normal', 1.20),
   ('item_title',     'Arial', 24, '#f0f0f0', 'bold',   'normal', 1.30),
+  ('item_title_2',   'Arial', 24, '#27ae60', 'bold',   'normal', 1.30),
   ('price',          'Arial', 30, '#f39c12', 'bold',   'normal', 1.20),
+  ('price_2',        'Arial', 30, '#e74c3c', 'bold',   'normal', 1.20),
   ('description',    'Arial', 14, '#cccccc', 'normal', 'normal', 1.60)
 ON DUPLICATE KEY UPDATE block_type = block_type;
 

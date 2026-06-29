@@ -284,6 +284,8 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     width:100%; padding:4px 6px; background:#2c3e50; color:#fff;
     border:1px solid #34495e; border-radius:3px; font-size:12px; margin-bottom:4px;
 }
+.col-align-row { display:flex; gap:3px; margin-bottom:4px; }
+.col-align-sel { flex:1; padding:2px 4px; background:#2c3e50; color:#fff; border:1px solid #34495e; border-radius:3px; font-size:10px; }
 .del-col-btn { width:100%; font-size:10px; padding:2px 4px; }
 .del-row-td  { width:32px; text-align:center; background:#0d1b24; }
 
@@ -2007,12 +2009,13 @@ function openTableModal() {
     try { td = JSON.parse(activeBlock.dataset.tableData || '{}'); } catch(e) {}
     var headers = (td.headers && td.headers.length) ? td.headers : ['item_title', 'price', 'description'];
     var rows    = (td.rows    && td.rows.length)    ? td.rows    : [['', '', ''], ['', '', '']];
-    // Ensure all rows have same column count
+    var valigns = (td.valigns && td.valigns.length === headers.length) ? td.valigns : headers.map(function() { return 'top'; });
+    var haligns = (td.haligns && td.haligns.length === headers.length) ? td.haligns : headers.map(function() { return 'left'; });
     rows = rows.map(function(r) {
         while (r.length < headers.length) r.push('');
         return r.slice(0, headers.length);
     });
-    rebuildTableEditor(headers, rows);
+    rebuildTableEditor({ headers: headers, rows: rows, valigns: valigns, haligns: haligns });
     document.getElementById('table-modal-overlay').classList.add('open');
 }
 
@@ -2020,7 +2023,12 @@ function closeTableModal() {
     document.getElementById('table-modal-overlay').classList.remove('open');
 }
 
-function rebuildTableEditor(headers, rows) {
+function rebuildTableEditor(data) {
+    var headers = data.headers || [];
+    var rows    = data.rows    || [];
+    var valigns = (data.valigns && data.valigns.length === headers.length) ? data.valigns : headers.map(function() { return 'top'; });
+    var haligns = (data.haligns && data.haligns.length === headers.length) ? data.haligns : headers.map(function() { return 'left'; });
+
     var head = document.getElementById('table-editor-head');
     var body = document.getElementById('table-editor-body');
     head.innerHTML = '';
@@ -2028,21 +2036,30 @@ function rebuildTableEditor(headers, rows) {
 
     var STYLES = [
         { value: 'item_title',    label: 'Title' },
+        { value: 'item_title_2',  label: 'Title 2' },
         { value: 'price',         label: 'Price' },
+        { value: 'price_2',       label: 'Price 2' },
         { value: 'description',   label: 'Description' },
         { value: 'section_header',label: 'Section Header' },
         { value: 'free',          label: 'Plain' },
     ];
+    var VALIGNS = [{value:'top',label:'Top'},{value:'middle',label:'Mid'},{value:'bottom',label:'Bot'}];
+    var HALIGNS = [{value:'left',label:'Left'},{value:'center',label:'Ctr'},{value:'right',label:'Right'}];
 
-    // Header row: style dropdowns + delete column buttons
     var htr = document.createElement('tr');
     headers.forEach(function(style, ci) {
+        var va = valigns[ci] || 'top';
+        var ha = haligns[ci] || 'left';
         var th = document.createElement('th');
-        var opts = STYLES.map(function(s) {
-            return '<option value="' + s.value + '"' + (style === s.value ? ' selected' : '') + '>' + s.label + '</option>';
-        }).join('');
+        var styleOpts  = STYLES.map(function(s)  { return '<option value="'+s.value+'"'+(style===s.value?' selected':'')+'>'+s.label+'</option>'; }).join('');
+        var valignOpts = VALIGNS.map(function(v) { return '<option value="'+v.value+'"'+(va===v.value?' selected':'')+'>'+v.label+'</option>'; }).join('');
+        var halignOpts = HALIGNS.map(function(h) { return '<option value="'+h.value+'"'+(ha===h.value?' selected':'')+'>'+h.label+'</option>'; }).join('');
         th.innerHTML =
-            '<select class="col-style-sel">' + opts + '</select>' +
+            '<select class="col-style-sel">' + styleOpts + '</select>' +
+            '<div class="col-align-row">' +
+            '<select class="col-align-sel col-valign-sel" title="Vertical align">' + valignOpts + '</select>' +
+            '<select class="col-align-sel col-halign-sel" title="Horizontal align">' + halignOpts + '</select>' +
+            '</div>' +
             '<button class="btn danger del-col-btn" onclick="deleteTableCol(' + ci + ')">&#10005; Col</button>';
         htr.appendChild(th);
     });
@@ -2051,7 +2068,6 @@ function rebuildTableEditor(headers, rows) {
     htr.appendChild(thEmpty);
     head.appendChild(htr);
 
-    // Data rows
     rows.forEach(function(row, ri) {
         var tr = document.createElement('tr');
         headers.forEach(function(_, ci) {
@@ -2071,42 +2087,47 @@ function rebuildTableEditor(headers, rows) {
 }
 
 function getTableEditorData() {
-    var selects = document.getElementById('table-editor-head').querySelectorAll('.col-style-sel');
-    var headers = Array.from(selects).map(function(s) { return s.value; });
+    var head = document.getElementById('table-editor-head');
+    var headers = Array.from(head.querySelectorAll('.col-style-sel')).map(function(s) { return s.value; });
+    var valigns = Array.from(head.querySelectorAll('.col-valign-sel')).map(function(s) { return s.value; });
+    var haligns = Array.from(head.querySelectorAll('.col-halign-sel')).map(function(s) { return s.value; });
     var rows = [];
     document.getElementById('table-editor-body').querySelectorAll('tr').forEach(function(tr) {
-        var cells = tr.querySelectorAll('td input[type="text"]');
-        rows.push(Array.from(cells).map(function(inp) { return inp.value; }));
+        rows.push(Array.from(tr.querySelectorAll('td input[type="text"]')).map(function(inp) { return inp.value; }));
     });
-    return { headers: headers, rows: rows };
+    return { headers: headers, valigns: valigns, haligns: haligns, rows: rows };
 }
 
 function addTableRow() {
     var td = getTableEditorData();
     td.rows.push(td.headers.map(function() { return ''; }));
-    rebuildTableEditor(td.headers, td.rows);
+    rebuildTableEditor(td);
 }
 
 function addTableCol() {
     var td = getTableEditorData();
     td.headers.push('item_title');
+    td.valigns.push('top');
+    td.haligns.push('left');
     td.rows.forEach(function(r) { r.push(''); });
-    rebuildTableEditor(td.headers, td.rows);
+    rebuildTableEditor(td);
 }
 
 function deleteTableCol(ci) {
     var td = getTableEditorData();
     if (td.headers.length <= 1) { showToast('Table must have at least 1 column.', true); return; }
     td.headers.splice(ci, 1);
+    td.valigns.splice(ci, 1);
+    td.haligns.splice(ci, 1);
     td.rows.forEach(function(r) { r.splice(ci, 1); });
-    rebuildTableEditor(td.headers, td.rows);
+    rebuildTableEditor(td);
 }
 
 function deleteTableRow(ri) {
     var td = getTableEditorData();
     if (td.rows.length <= 1) { showToast('Table must have at least 1 row.', true); return; }
     td.rows.splice(ri, 1);
-    rebuildTableEditor(td.headers, td.rows);
+    rebuildTableEditor(td);
 }
 
 function saveTable() {
