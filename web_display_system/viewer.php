@@ -100,6 +100,11 @@
         line-height: 1.4;
     }
 
+    /* ── Table ── */
+    .table-wrap { width:100%; height:100%; overflow:auto; }
+    .table-wrap table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .table-wrap td { padding:8px 10px; border:1px solid rgba(255,255,255,0.12); vertical-align:top; overflow:hidden; }
+
     /* ── Marquee ── */
     .marquee-wrap {
         width: 100%; height: 100%;
@@ -280,6 +285,9 @@
                     } else if (el.type === 'carousel') {
                         renderCarousel(block, content);
 
+                    } else if (el.type === 'table') {
+                        renderTable(block, content, blockStyles);
+
                     } else if (el.type === 'marquee') {
                         renderMarquee(block, content);
                     }
@@ -381,6 +389,50 @@
         }, interval);
 
         _carouselTimers.push(timer);
+    }
+
+    // ── Table ────────────────────────────────────────────────────
+    function renderTable(block, content, blockStyles) {
+        var data = {};
+        try { data = JSON.parse(content || '{}'); } catch(e) {}
+        var headers = data.headers || [];
+        var rows    = data.rows    || [];
+
+        if (!headers.length || !rows.length) {
+            block.style.cssText += 'display:flex;align-items:center;justify-content:center;color:#666;font-family:Arial;font-size:14px;';
+            block.textContent = 'Table — no data';
+            return;
+        }
+
+        var wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+
+        var tbl = document.createElement('table');
+        rows.forEach(function(row) {
+            var tr = document.createElement('tr');
+            headers.forEach(function(style, ci) {
+                var td = document.createElement('td');
+                if (style !== 'free' && blockStyles[style]) {
+                    var bs = blockStyles[style];
+                    td.style.fontFamily  = bs.font_family;
+                    td.style.fontSize    = bs.font_size + 'px';
+                    td.style.color       = bs.font_color;
+                    td.style.fontWeight  = bs.font_weight;
+                    td.style.fontStyle   = bs.font_style;
+                    td.style.lineHeight  = bs.line_height;
+                } else {
+                    td.style.fontFamily = 'Arial, sans-serif';
+                    td.style.fontSize   = '16px';
+                    td.style.color      = '#fff';
+                }
+                td.textContent = (row[ci] !== undefined && row[ci] !== null) ? row[ci] : '';
+                tr.appendChild(td);
+            });
+            tbl.appendChild(tr);
+        });
+
+        wrap.appendChild(tbl);
+        block.appendChild(wrap);
     }
 
     // ── Marquee ─────────────────────────────────────────────────

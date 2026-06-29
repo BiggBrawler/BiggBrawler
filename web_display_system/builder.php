@@ -245,6 +245,47 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
 }
 .slide-img-preview img { max-width:100%; max-height:60px; object-fit:contain; }
 
+/* ── Table block preview ── */
+.table-preview {
+    width:100%; height:100%; background:#1a1a2e;
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:6px; pointer-events:none;
+}
+.table-preview-lbl {
+    background:rgba(52,73,94,.9); color:#fff; padding:3px 12px;
+    border-radius:3px; font-size:12px; font-weight:600;
+}
+
+/* ── Table Editor Modal ── */
+#table-modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:500; align-items:center; justify-content:center;
+}
+#table-modal-overlay.open { display:flex; }
+#table-modal {
+    background:#1a252f; border-radius:8px; padding:24px;
+    width:860px; max-width:95vw; max-height:90vh; overflow-y:auto;
+    border:1px solid #34495e;
+}
+#table-modal h2  { font-size:16px; margin-bottom:4px; }
+#table-modal > p { font-size:12px; color:#bdc3c7; margin-bottom:14px; }
+.table-editor-wrap { overflow-x:auto; margin-top:4px; }
+.table-editor { border-collapse:collapse; width:100%; }
+.table-editor th, .table-editor td {
+    border:1px solid #2c3e50; padding:4px; vertical-align:top;
+}
+.table-editor thead th { background:#0d1b24; min-width:120px; }
+.table-editor tbody td input[type="text"] {
+    width:100%; padding:5px 7px; background:#2c3e50; border:1px solid #34495e;
+    color:#fff; border-radius:3px; font-size:13px; box-sizing:border-box;
+}
+.col-style-sel {
+    width:100%; padding:4px 6px; background:#2c3e50; color:#fff;
+    border:1px solid #34495e; border-radius:3px; font-size:12px; margin-bottom:4px;
+}
+.del-col-btn { width:100%; font-size:10px; padding:2px 4px; }
+.del-row-td  { width:32px; text-align:center; background:#0d1b24; }
+
 /* ── Toast ── */
 #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -281,6 +322,7 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <button class="btn purple" onclick="createSection()">+ Section</button>
         <button class="btn"        onclick="createBlock('image',null)">+ Image</button>
         <button class="btn"        onclick="createBlock('carousel',null)">+ Carousel</button>
+        <button class="btn"        onclick="createBlock('table',null)">+ Table</button>
         <button class="btn"        onclick="createBlock('marquee',null)">+ Marquee</button>
         <button class="btn"        onclick="createBlock('video',null)">+ Video</button>
         <div class="sep"></div>
@@ -494,6 +536,14 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
         <div id="carousel-slide-count" style="font-size:11px;color:#bdc3c7;margin-top:4px;"></div>
     </div>
 
+    <!-- Table editor -->
+    <div id="insp-table" class="insp-section" style="display:none;">
+        <label>Table</label>
+        <div id="table-info" style="font-size:11px;color:#bdc3c7;margin-top:2px;"></div>
+        <button class="btn" style="font-size:12px;padding:5px 10px;margin-top:6px;width:100%;"
+                onclick="openTableModal()">Edit Table</button>
+    </div>
+
     <!-- Marquee editor -->
     <div id="insp-marquee" class="insp-section" style="display:none;">
         <label>Marquee Text</label>
@@ -563,6 +613,28 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
     </div>
 </div>
 
+<!-- ── Table Editor Modal ── -->
+<div id="table-modal-overlay">
+    <div id="table-modal">
+        <h2>Edit Table</h2>
+        <p>Set the column style using the dropdown, then enter cell content. The dropdowns are hidden on the display screen.</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+            <button class="btn" style="font-size:12px;padding:5px 10px;" onclick="addTableRow()">+ Add Row</button>
+            <button class="btn" style="font-size:12px;padding:5px 10px;" onclick="addTableCol()">+ Add Column</button>
+        </div>
+        <div class="table-editor-wrap">
+            <table class="table-editor">
+                <thead id="table-editor-head"></thead>
+                <tbody id="table-editor-body"></tbody>
+            </table>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="btn green" onclick="saveTable()">Save Table</button>
+            <button class="btn gray"  onclick="closeTableModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -583,6 +655,7 @@ var BLOCK_DEFAULTS = {
     free:           { w:320, h:80  },
     section:        { w:600, h:380 },
     carousel:       { w:480, h:320 },
+    table:          { w:480, h:200 },
     marquee:        { w:1920, h:60  },
 };
 
@@ -772,8 +845,8 @@ function createBlock(type, subtype) {
     var def  = BLOCK_DEFAULTS[key] || {w:200,h:100};
     var parent = targetSection || document.getElementById('builder-canvas');
 
-    // Carousel width: 90% of section if inside one, otherwise 200px
-    if (type === 'carousel') {
+    // Carousel / Table width: 90% of section if inside one, otherwise 200px
+    if (type === 'carousel' || type === 'table') {
         var _cw = (parent && parent.classList && parent.classList.contains('section-block'))
             ? Math.round(parent.offsetWidth * 0.9)
             : 200;
@@ -873,6 +946,11 @@ function renderBlock(el, parent) {
         try { cdata = JSON.parse(content || '{}'); } catch(e) {}
         block.dataset.carouselData = JSON.stringify(cdata);
         buildCarouselPreview(block, cdata);
+    } else if (el.type === 'table') {
+        var tdata = {};
+        try { tdata = JSON.parse(content || '{}'); } catch(e) {}
+        block.dataset.tableData = JSON.stringify(tdata);
+        buildTablePreview(block, tdata);
     } else if (el.type === 'marquee') {
         var mdata = {};
         try { mdata = JSON.parse(content || '{}'); } catch(e) {}
@@ -1016,6 +1094,17 @@ function showInspector(block) {
             sl + ' slide' + (sl !== 1 ? 's' : '') + ' — click Edit Slides to manage';
     }
 
+    // Table inspector
+    document.getElementById('insp-table').style.display = (type==='table') ? 'block' : 'none';
+    if (type === 'table') {
+        var tdinsp = {};
+        try { tdinsp = JSON.parse(block.dataset.tableData || '{}'); } catch(e) {}
+        var tcols = (tdinsp.headers || []).length;
+        var trows = (tdinsp.rows    || []).length;
+        document.getElementById('table-info').textContent =
+            tcols + ' col' + (tcols !== 1 ? 's' : '') + ', ' + trows + ' row' + (trows !== 1 ? 's' : '');
+    }
+
     // Marquee inspector
     document.getElementById('insp-marquee').style.display = (type==='marquee') ? 'block' : 'none';
     if (type === 'marquee') {
@@ -1030,8 +1119,8 @@ function showInspector(block) {
         document.getElementById('marquee-bg').value            = md.bg     || '#c0392b';
     }
 
-    // Asset link – non-section, non-carousel, non-marquee
-    var hideAsset = isSection || type === 'carousel' || type === 'marquee';
+    // Asset link – non-section, non-carousel, non-marquee, non-table
+    var hideAsset = isSection || type === 'carousel' || type === 'marquee' || type === 'table';
     document.getElementById('insp-asset').style.display = hideAsset ? 'none' : 'block';
     document.getElementById('asset-link').value = block.dataset.assetId || '';
 
@@ -1416,6 +1505,9 @@ function publishCanvas() {
                 savePool = true;
             } else if (type === 'carousel') {
                 manual   = block.dataset.carouselData || '{}';
+                savePool = false;
+            } else if (type === 'table') {
+                manual   = block.dataset.tableData || '{}';
                 savePool = false;
             } else if (type === 'marquee') {
                 manual   = block.dataset.marqueeData || '{}';
@@ -1884,6 +1976,145 @@ function updateCarouselInterval(val) {
     try { cd = JSON.parse(activeBlock.dataset.carouselData || '{}'); } catch(e) {}
     cd.interval = Math.max(1, parseFloat(val || 5)) * 1000;
     activeBlock.dataset.carouselData = JSON.stringify(cd);
+}
+
+// ============================================================
+// TABLE PREVIEW + MODAL
+// ============================================================
+function buildTablePreview(block, data) {
+    Array.from(block.children).forEach(function(child) {
+        if (!child.classList.contains('rh') && !child.classList.contains('lock-icon')) child.remove();
+    });
+    var headers = (data && data.headers) || [];
+    var rows    = (data && data.rows)    || [];
+    var preview = document.createElement('div');
+    preview.className = 'table-preview';
+    var lbl = document.createElement('div');
+    lbl.className = 'table-preview-lbl';
+    lbl.textContent = '⋞ Table — ' + headers.length + ' col' + (headers.length !== 1 ? 's' : '') +
+                      ', ' + rows.length + ' row' + (rows.length !== 1 ? 's' : '');
+    preview.appendChild(lbl);
+    block.appendChild(preview);
+}
+
+function openTableModal() {
+    if (!activeBlock || activeBlock.dataset.type !== 'table') return;
+    var td = {};
+    try { td = JSON.parse(activeBlock.dataset.tableData || '{}'); } catch(e) {}
+    var headers = (td.headers && td.headers.length) ? td.headers : ['item_title', 'price', 'description'];
+    var rows    = (td.rows    && td.rows.length)    ? td.rows    : [['', '', ''], ['', '', '']];
+    // Ensure all rows have same column count
+    rows = rows.map(function(r) {
+        while (r.length < headers.length) r.push('');
+        return r.slice(0, headers.length);
+    });
+    rebuildTableEditor(headers, rows);
+    document.getElementById('table-modal-overlay').classList.add('open');
+}
+
+function closeTableModal() {
+    document.getElementById('table-modal-overlay').classList.remove('open');
+}
+
+function rebuildTableEditor(headers, rows) {
+    var head = document.getElementById('table-editor-head');
+    var body = document.getElementById('table-editor-body');
+    head.innerHTML = '';
+    body.innerHTML = '';
+
+    var STYLES = [
+        { value: 'item_title',    label: 'Title' },
+        { value: 'price',         label: 'Price' },
+        { value: 'description',   label: 'Description' },
+        { value: 'section_header',label: 'Section Header' },
+        { value: 'free',          label: 'Plain' },
+    ];
+
+    // Header row: style dropdowns + delete column buttons
+    var htr = document.createElement('tr');
+    headers.forEach(function(style, ci) {
+        var th = document.createElement('th');
+        var opts = STYLES.map(function(s) {
+            return '<option value="' + s.value + '"' + (style === s.value ? ' selected' : '') + '>' + s.label + '</option>';
+        }).join('');
+        th.innerHTML =
+            '<select class="col-style-sel">' + opts + '</select>' +
+            '<button class="btn danger del-col-btn" onclick="deleteTableCol(' + ci + ')">&#10005; Col</button>';
+        htr.appendChild(th);
+    });
+    var thEmpty = document.createElement('th');
+    thEmpty.style.cssText = 'width:34px;background:#0d1b24;';
+    htr.appendChild(thEmpty);
+    head.appendChild(htr);
+
+    // Data rows
+    rows.forEach(function(row, ri) {
+        var tr = document.createElement('tr');
+        headers.forEach(function(_, ci) {
+            var td = document.createElement('td');
+            var inp = document.createElement('input');
+            inp.type  = 'text';
+            inp.value = (row[ci] !== undefined && row[ci] !== null) ? row[ci] : '';
+            td.appendChild(inp);
+            tr.appendChild(td);
+        });
+        var tdDel = document.createElement('td');
+        tdDel.className = 'del-row-td';
+        tdDel.innerHTML = '<button class="btn danger" style="font-size:10px;padding:2px 4px;width:100%;" onclick="deleteTableRow(' + ri + ')">&#10005;</button>';
+        tr.appendChild(tdDel);
+        body.appendChild(tr);
+    });
+}
+
+function getTableEditorData() {
+    var selects = document.getElementById('table-editor-head').querySelectorAll('.col-style-sel');
+    var headers = Array.from(selects).map(function(s) { return s.value; });
+    var rows = [];
+    document.getElementById('table-editor-body').querySelectorAll('tr').forEach(function(tr) {
+        var cells = tr.querySelectorAll('td input[type="text"]');
+        rows.push(Array.from(cells).map(function(inp) { return inp.value; }));
+    });
+    return { headers: headers, rows: rows };
+}
+
+function addTableRow() {
+    var td = getTableEditorData();
+    td.rows.push(td.headers.map(function() { return ''; }));
+    rebuildTableEditor(td.headers, td.rows);
+}
+
+function addTableCol() {
+    var td = getTableEditorData();
+    td.headers.push('item_title');
+    td.rows.forEach(function(r) { r.push(''); });
+    rebuildTableEditor(td.headers, td.rows);
+}
+
+function deleteTableCol(ci) {
+    var td = getTableEditorData();
+    if (td.headers.length <= 1) { showToast('Table must have at least 1 column.', true); return; }
+    td.headers.splice(ci, 1);
+    td.rows.forEach(function(r) { r.splice(ci, 1); });
+    rebuildTableEditor(td.headers, td.rows);
+}
+
+function deleteTableRow(ri) {
+    var td = getTableEditorData();
+    if (td.rows.length <= 1) { showToast('Table must have at least 1 row.', true); return; }
+    td.rows.splice(ri, 1);
+    rebuildTableEditor(td.headers, td.rows);
+}
+
+function saveTable() {
+    if (!activeBlock) return;
+    var td = getTableEditorData();
+    activeBlock.dataset.tableData = JSON.stringify(td);
+    buildTablePreview(activeBlock, td);
+    document.getElementById('table-info').textContent =
+        td.headers.length + ' col' + (td.headers.length !== 1 ? 's' : '') +
+        ', ' + td.rows.length + ' row' + (td.rows.length !== 1 ? 's' : '');
+    closeTableModal();
+    showToast('Table saved. Remember to Publish.');
 }
 
 // ============================================================
