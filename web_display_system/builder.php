@@ -264,15 +264,13 @@ body { background: #2c3e50; display: flex; flex-direction: column; height: 100vh
              style="max-height:32px; max-width:130px; object-fit:contain; flex-shrink:0;">
     <?php endif; ?>
     <span class="brand"><?= htmlspecialchars(SITE_NAME) ?></span>
+    <span class="role-tag" style="margin-left:20px;"><?= $isAdmin ? 'ADMIN' : 'USER' ?></span>
     <a href="crud.php">Asset Library</a>
     <?php if ($isAdmin): ?>
     <a href="admin_panel.php">Admin Panel</a>
-    <a href="setup_branding.php">Branding</a>
+    <a href="admin_panel.php?tab=branding">Branding</a>
     <?php endif; ?>
-    <span class="user-info">
-        <?= htmlspecialchars($me['username']) ?>
-        <span class="role-tag"><?= $isAdmin ? 'ADMIN' : 'USER' ?></span>
-    </span>
+    <span class="user-info"><?= htmlspecialchars($me['username']) ?></span>
     <a href="help.php" target="_blank">Help</a>
     <a href="viewer.php" target="_blank">View Display ↗</a>
     <a href="logout.php">Sign Out</a>
@@ -798,7 +796,10 @@ function renderBlock(el, parent) {
         inner.contentEditable = 'true';
         inner.style.pointerEvents = 'none'; // disabled until dblclick; lets drag/shift+click reach block div
         inner.innerHTML = content || (el.block_subtype !== 'free' ? 'Enter text here' : 'Double-click to edit');
-        inner.addEventListener('focus', function() { if (block !== activeBlock) selectBlock(block); });
+        inner.addEventListener('focus', function() {
+            if (_shiftDown || multiSel.length > 0) { inner.blur(); return; }
+            if (block !== activeBlock) selectBlock(block);
+        });
         inner.addEventListener('blur',  function() { inner.style.pointerEvents = 'none'; });
         block.addEventListener('dblclick', function(e) {
             if (block.dataset.locked === '1' || _shiftDown || e.target.closest('.rh')) return;
@@ -843,6 +844,7 @@ function renderBlock(el, parent) {
     block.addEventListener('mousedown', function(e) {
         if (e.target.closest('.rh')) return; // resize handles handled by interact.js
         if (e.shiftKey) {
+            e.preventDefault(); // prevent browser focus/text-selection changes during multi-select
             toggleMultiSel(block);
         } else {
             selectBlock(block);
