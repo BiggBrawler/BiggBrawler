@@ -149,33 +149,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'publish') {
             }
         }
 
-        // Clear children first (self-referential FK), then all elements
-        $pdo->exec("DELETE FROM canvas_elements WHERE section_id IS NOT NULL");
-        $pdo->exec("DELETE FROM canvas_elements");
-
-        // Phase 1: insert sections (admin data only) → capture temp_id → real_id map
+        // Phase 1: sections and temp_id → real_id map
         $tempMap = [];
-        foreach ($data as $el) {
-            if (($el['type'] ?? '') !== 'section') continue;
-            if (!$isAdmin) continue; // basic users cannot create/publish sections
 
-            $pdo->prepare(
-                "INSERT INTO canvas_elements
-                 (type, x_pos, y_pos, width, height, section_bg, locked, sort_order, z_index)
-                 VALUES ('section', ?, ?, ?, ?, ?, ?, ?, ?)"
-            )->execute([
-                intval($el['x_pos'] ?? 0),
-                intval($el['y_pos'] ?? 0),
-                intval($el['width'] ?? 400),
-                intval($el['height'] ?? 300),
-                $el['section_bg'] ?? null,
-                intval($el['locked'] ?? 0),
-                intval($el['sort_order'] ?? 0),
-                max(1, intval($el['z_index'] ?? 1)),
-            ]);
-            $realId = $pdo->lastInsertId();
-            if (!empty($el['temp_id'])) {
-                $tempMap[$el['temp_id']] = $realId;
+        if ($isAdmin) {
+            // Admin: wipe everything and re-insert all sections from submitted data
+            $pdo->exec("DELETE FROM canvas_elements WHERE section_id IS NOT NULL");
+            $pdo->exec("DELETE FROM canvas_elements");
+
+            foreach ($data as $el) {
+                if (($el['type'] ?? '') !== 'section') continue;
+
+                $pdo->prepare(
+                    "INSERT INTO canvas_elements
+                     (type, x_pos, y_pos, width, height, section_bg, locked, sort_order, z_index)
+                     VALUES ('section', ?, ?, ?, ?, ?, ?, ?, ?)"
+                )->execute([
+                    intval($el['x_pos'] ?? 0),
+                    intval($el['y_pos'] ?? 0),
+                    intval($el['width'] ?? 400),
+                    intval($el['height'] ?? 300),
+                    $el['section_bg'] ?? null,
+                    intval($el['locked'] ?? 0),
+                    intval($el['sort_order'] ?? 0),
+                    max(1, intval($el['z_index'] ?? 1)),
+                ]);
+                $realId = $pdo->lastInsertId();
+                if (!empty($el['temp_id'])) {
+                    $tempMap[$el['temp_id']] = $realId;
+                }
+            }
+        } else {
+            // Basic user: preserve existing sections; only wipe non-section elements.
+            // Build tempMap from the real DB IDs sent by the builder (db_id field).
+            $pdo->exec("DELETE FROM canvas_elements WHERE type != 'section'");
+
+            foreach ($data as $el) {
+                if (($el['type'] ?? '') !== 'section') continue;
+                if (!empty($el['temp_id']) && !empty($el['db_id'])) {
+                    $tempMap[$el['temp_id']] = intval($el['db_id']);
+                }
             }
         }
 

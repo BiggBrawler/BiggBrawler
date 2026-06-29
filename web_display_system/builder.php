@@ -1622,6 +1622,7 @@ function publishCanvas() {
         elements.push({
             type:       'section',
             temp_id:    s.dataset.tempId,
+            db_id:      s.dataset.dbId  || null,
             x_pos:      Math.round(parseFloat(s.getAttribute('data-x'))||0),
             y_pos:      Math.round(parseFloat(s.getAttribute('data-y'))||0),
             width:      Math.round(s.offsetWidth),
