@@ -1735,6 +1735,7 @@ function addSlideRow(data) {
     var priceVal = priceDel ? '' : escHtml(data.price || '');
     var descVal  = descDel  ? '' : escHtml(data.description || '');
     var textPos  = data.textPosition || 'right';
+    var imgFit   = data.imageFit    || 'contain';
 
     var imgHtml = data.image
         ? '<img src="'+escHtml(data.image)+'" style="max-width:100%;max-height:60px;object-fit:contain;">'
@@ -1750,6 +1751,14 @@ function addSlideRow(data) {
                 '<div class="slide-img-preview">' + imgHtml + '</div>' +
                 '<input type="file" accept="image/*" onchange="uploadSlideImage(this)" style="font-size:12px;color:#aaa;">' +
                 '<input type="hidden" class="slide-img-path" value="' + escHtml(data.image || '') + '">' +
+                '<label style="margin-top:5px;">Image Fit</label>' +
+                '<select class="slide-img-fit" style="width:100%;padding:5px;background:#2c3e50;color:#fff;border:1px solid #34495e;border-radius:3px;font-size:12px;margin-top:2px;">' +
+                    '<option value="contain"' + (imgFit==='contain' ?' selected':'') + '>Contain — whole image</option>' +
+                    '<option value="cover"'   + (imgFit==='cover'   ?' selected':'') + '>Cover — crop to fill</option>' +
+                    '<option value="fill"'    + (imgFit==='fill'    ?' selected':'') + '>Stretch to fill</option>' +
+                    '<option value="fit-w"'   + (imgFit==='fit-w'   ?' selected':'') + '>Fit Width</option>' +
+                    '<option value="fit-h"'   + (imgFit==='fit-h'   ?' selected':'') + '>Fit Height</option>' +
+                '</select>' +
             '</div>' +
             '<div class="slide-field">' +
                 '<label>Text Position</label>' +
@@ -1851,6 +1860,7 @@ function saveCarouselSlides() {
         var descInp  = row.querySelector('.slide-desc');
         slides.push({
             image:        (row.querySelector('.slide-img-path') || {}).value || '',
+            imageFit:     (row.querySelector('.slide-img-fit')  || {}).value || 'contain',
             textPosition: (row.querySelector('.slide-text-pos') || {}).value || 'right',
             title:        titleInp && titleInp.dataset.deleted === '1' ? null : (titleInp ? titleInp.value : ''),
             price:        priceInp && priceInp.dataset.deleted === '1' ? null : (priceInp ? priceInp.value : ''),

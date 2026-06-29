@@ -65,7 +65,7 @@
     .carousel-slide.pos-top    .carousel-img-wrap { width: 100%; height: 40%; }
     .carousel-img-wrap img {
         width: 100%; height: 100%;
-        object-fit: cover; display: block;
+        display: block;
     }
     /* Text panel — 60% of space, transparent background */
     .carousel-text-panel {
@@ -331,10 +331,21 @@
             // Image wrap (40%)
             var imgWrap = document.createElement('div');
             imgWrap.className = 'carousel-img-wrap';
+            imgWrap.style.overflow = 'hidden';
             if (s.image) {
                 var img = document.createElement('img');
                 img.src = s.image;
                 img.alt = s.title || '';
+                var fit = s.imageFit || 'contain';
+                if (fit === 'fit-w') {
+                    img.style.width  = '100%';
+                    img.style.height = 'auto';
+                } else if (fit === 'fit-h') {
+                    img.style.width  = 'auto';
+                    img.style.height = '100%';
+                } else {
+                    img.style.objectFit = fit; // contain / cover / fill
+                }
                 imgWrap.appendChild(img);
             } else {
                 imgWrap.style.background = '#1a1a2e';
