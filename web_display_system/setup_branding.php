@@ -14,6 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_branding'])) {
     $navBorder = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['nav_border'] ?? '') ? $_POST['nav_border'] : '#0d1b24';
     $accent    = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['accent']     ?? '') ? $_POST['accent']     : '#3498db';
     $navText   = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['nav_text']   ?? '') ? $_POST['nav_text']   : '#ffffff';
+    $siteName  = trim($_POST['site_name']  ?? '') ?: 'Store Display System';
+    $mailFrom  = filter_var(trim($_POST['mail_from']  ?? ''), FILTER_VALIDATE_EMAIL) ?: (defined('MAIL_FROM') ? MAIL_FROM : 'noreply@yourdomain.com');
+    $mailName  = trim($_POST['mail_name']  ?? '') ?: (defined('MAIL_FROM_NAME') ? MAIL_FROM_NAME : 'Display System');
 
     // Determine logo path — keep existing if no new file; validate to prevent path traversal
     $rawExisting = $_POST['existing_logo'] ?? '';
@@ -52,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_branding'])) {
         $lines .= "define('BRAND_NAV_BORDER', " . var_export($navBorder,true) . ");\n";
         $lines .= "define('BRAND_ACCENT',     " . var_export($accent,   true) . ");\n";
         $lines .= "define('BRAND_TEXT',       " . var_export($navText,  true) . ");\n";
+        $lines .= "define('SITE_NAME',        " . var_export($siteName, true) . ");\n";
+        $lines .= "define('MAIL_FROM',        " . var_export($mailFrom, true) . ");\n";
+        $lines .= "define('MAIL_FROM_NAME',   " . var_export($mailName, true) . ");\n";
 
         if (file_put_contents($configFile, $lines) === false) {
             $message = 'Could not write branding_config.php. Check file permissions.';
@@ -71,6 +77,9 @@ $curNavBg   = defined('BRAND_NAV_BG')     ? BRAND_NAV_BG     : '#1a252f';
 $curBorder  = defined('BRAND_NAV_BORDER') ? BRAND_NAV_BORDER : '#0d1b24';
 $curAccent  = defined('BRAND_ACCENT')     ? BRAND_ACCENT     : '#3498db';
 $curText    = defined('BRAND_TEXT')       ? BRAND_TEXT       : '#ffffff';
+$curSite    = defined('SITE_NAME')        ? SITE_NAME        : 'Store Display System';
+$curMail    = defined('MAIL_FROM')        ? MAIL_FROM        : 'noreply@yourdomain.com';
+$curMailN   = defined('MAIL_FROM_NAME')   ? MAIL_FROM_NAME   : 'Display System';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -221,6 +230,24 @@ $curText    = defined('BRAND_TEXT')       ? BRAND_TEXT       : '#ffffff';
                        oninput="livePreview()">
                 <span>Site name text color in the nav</span>
             </div>
+        </div>
+
+        <!-- Site & Email -->
+        <div class="card">
+            <h2>Site &amp; Email Settings</h2>
+            <label>Site Name</label>
+            <input type="text" name="site_name" value="<?= htmlspecialchars($curSite) ?>"
+                   placeholder="Store Display System" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:14px;">
+            <p class="note">Displayed in the browser tab and login screen heading.</p>
+
+            <label>Email From Address</label>
+            <input type="email" name="mail_from" value="<?= htmlspecialchars($curMail) ?>"
+                   placeholder="noreply@yourdomain.com" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:14px;">
+            <p class="note">Must be a real mailbox on your hosting domain (e.g. <code>noreply@biggbrawler.com</code>) for password-reset emails to be delivered.</p>
+
+            <label>Email From Name</label>
+            <input type="text" name="mail_name" value="<?= htmlspecialchars($curMailN) ?>"
+                   placeholder="Display System" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:4px;">
         </div>
 
         <button type="submit" name="save_branding" class="btn btn-primary">Save Branding</button>

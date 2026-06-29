@@ -795,13 +795,14 @@ function renderBlock(el, parent) {
         if (el.text_align) { block.style.textAlign = el.text_align; block.dataset.textAlign = el.text_align; }
         var inner = document.createElement('div');
         inner.className = 'text-inner';
-        inner.contentEditable = 'false'; // single-click selects/drags; double-click activates editing
+        inner.contentEditable = 'true';
+        inner.style.pointerEvents = 'none'; // disabled until dblclick; lets drag/shift+click reach block div
         inner.innerHTML = content || (el.block_subtype !== 'free' ? 'Enter text here' : 'Double-click to edit');
         inner.addEventListener('focus', function() { if (block !== activeBlock) selectBlock(block); });
-        inner.addEventListener('blur',  function() { inner.contentEditable = 'false'; });
+        inner.addEventListener('blur',  function() { inner.style.pointerEvents = 'none'; });
         block.addEventListener('dblclick', function(e) {
             if (block.dataset.locked === '1' || _shiftDown || e.target.closest('.rh')) return;
-            inner.contentEditable = 'true';
+            inner.style.pointerEvents = 'auto';
             inner.focus();
             if (document.caretRangeFromPoint) {
                 var range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -890,7 +891,7 @@ function deselectAll() {
     if (activeBlock) {
         activeBlock.classList.remove('selected');
         var _ti = activeBlock.querySelector('.text-inner');
-        if (_ti) _ti.contentEditable = 'false';
+        if (_ti) { _ti.style.pointerEvents = 'none'; _ti.blur(); }
     }
     activeBlock = null;
     document.getElementById('inspector').style.display = 'none';
