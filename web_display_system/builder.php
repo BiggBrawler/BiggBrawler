@@ -1986,8 +1986,9 @@ function addSlideRow(data) {
     var titleVal = titleDel ? '' : escHtml(data.title || '');
     var priceVal = priceDel ? '' : escHtml(data.price || '');
     var descVal  = descDel  ? '' : escHtml(data.description || '');
-    var textPos  = data.textPosition || 'right';
-    var imgFit   = data.imageFit    || 'contain';
+    var textPos   = data.textPosition || 'right';
+    var imgFit    = data.imageFit    || 'contain';
+    var imageOnly = data.imageOnly   || false;
 
     var imgHtml = data.image
         ? '<img src="'+escHtml(data.image)+'" style="max-width:100%;max-height:60px;object-fit:contain;">'
@@ -1998,6 +1999,12 @@ function addSlideRow(data) {
             ' <button class="btn danger" style="font-size:11px;padding:3px 8px;" onclick="removeSlideRow(this)">Remove Slide</button>' +
         '</div>' +
         '<div class="slide-fields">' +
+            '<div class="slide-field" style="grid-column:1/-1;">' +
+                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#bdc3c7;">' +
+                    '<input type="checkbox" class="slide-img-only" onchange="toggleSlideImgOnly(this)"' + (imageOnly ? ' checked' : '') + '>' +
+                    'Image Only — fills entire slide, no text' +
+                '</label>' +
+            '</div>' +
             '<div class="slide-field">' +
                 '<label>Image</label>' +
                 '<div class="slide-img-preview">' + imgHtml + '</div>' +
@@ -2012,7 +2019,7 @@ function addSlideRow(data) {
                     '<option value="fit-h"'   + (imgFit==='fit-h'   ?' selected':'') + '>Fit Height</option>' +
                 '</select>' +
             '</div>' +
-            '<div class="slide-field">' +
+            '<div class="slide-field"' + (imageOnly ? ' style="display:none;"' : '') + '>' +
                 '<label>Text Position</label>' +
                 '<select class="slide-text-pos" style="width:100%;padding:6px;background:#2c3e50;color:#fff;border:1px solid #34495e;border-radius:3px;font-size:13px;">' +
                     '<option value="right"'  + (textPos==='right'  ?' selected':'') + '>Right of image</option>' +
@@ -2021,7 +2028,7 @@ function addSlideRow(data) {
                     '<option value="top"'    + (textPos==='top'    ?' selected':'') + '>Above image</option>' +
                 '</select>' +
             '</div>' +
-            '<div class="slide-field" style="grid-column:1/-1;">' +
+            '<div class="slide-field" style="grid-column:1/-1;' + (imageOnly ? 'display:none;' : '') + '">' +
                 '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
                     '<label style="margin:0;">Title</label>' +
                     (titleDel
@@ -2032,7 +2039,7 @@ function addSlideRow(data) {
                     (titleDel ? ' disabled style="opacity:0.3;"' : '') +
                     ' data-deleted="' + (titleDel ? '1' : '0') + '">' +
             '</div>' +
-            '<div class="slide-field" style="grid-column:1/-1;">' +
+            '<div class="slide-field" style="grid-column:1/-1;' + (imageOnly ? 'display:none;' : '') + '">' +
                 '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
                     '<label style="margin:0;">Price</label>' +
                     (priceDel
@@ -2043,7 +2050,7 @@ function addSlideRow(data) {
                     (priceDel ? ' disabled style="opacity:0.3;"' : '') +
                     ' data-deleted="' + (priceDel ? '1' : '0') + '">' +
             '</div>' +
-            '<div class="slide-field" style="grid-column:1/-1;">' +
+            '<div class="slide-field" style="grid-column:1/-1;' + (imageOnly ? 'display:none;' : '') + '">' +
                 '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
                     '<label style="margin:0;">Description</label>' +
                     (descDel
@@ -2074,6 +2081,16 @@ function restoreSlideField(btn, field) {
     btn.innerHTML = '&#10005; Delete';
     btn.classList.remove('gray'); btn.classList.add('danger');
     btn.setAttribute('onclick', "deleteSlideField(this,'" + field + "')");
+}
+
+function toggleSlideImgOnly(cb) {
+    var row    = cb.closest('.slide-row');
+    var isOnly = cb.checked;
+    row.querySelectorAll('.slide-field').forEach(function(f) {
+        // Keep the Image field and the Image Only checkbox field always visible
+        if (f.querySelector('.slide-img-path') || f.querySelector('.slide-img-only')) return;
+        f.style.display = isOnly ? 'none' : '';
+    });
 }
 
 function removeSlideRow(btn) {
@@ -2110,9 +2127,11 @@ function saveCarouselSlides() {
         var titleInp = row.querySelector('.slide-title');
         var priceInp = row.querySelector('.slide-price');
         var descInp  = row.querySelector('.slide-desc');
+        var imgOnlyCb = row.querySelector('.slide-img-only');
         slides.push({
             image:        (row.querySelector('.slide-img-path') || {}).value || '',
             imageFit:     (row.querySelector('.slide-img-fit')  || {}).value || 'contain',
+            imageOnly:    !!(imgOnlyCb && imgOnlyCb.checked),
             textPosition: (row.querySelector('.slide-text-pos') || {}).value || 'right',
             title:        titleInp && titleInp.dataset.deleted === '1' ? null : (titleInp ? titleInp.value : ''),
             price:        priceInp && priceInp.dataset.deleted === '1' ? null : (priceInp ? priceInp.value : ''),

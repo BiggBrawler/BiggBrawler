@@ -352,12 +352,16 @@
         slides.forEach(function(s) {
             var pos   = s.textPosition || 'right';
             var slide = document.createElement('div');
-            slide.className = 'carousel-slide pos-' + pos;
+            slide.className = s.imageOnly ? 'carousel-slide' : 'carousel-slide pos-' + pos;
 
-            // Image wrap (40%)
+            // Image wrap — full size when imageOnly, otherwise 40%
             var imgWrap = document.createElement('div');
             imgWrap.className = 'carousel-img-wrap';
             imgWrap.style.overflow = 'hidden';
+            if (s.imageOnly) {
+                imgWrap.style.width  = '100%';
+                imgWrap.style.height = '100%';
+            }
             if (s.image) {
                 var img = document.createElement('img');
                 img.src = s.image;
@@ -378,31 +382,33 @@
             }
             slide.appendChild(imgWrap);
 
-            // Text panel (60%) — transparent background, brand-styled text
-            var panel = document.createElement('div');
-            panel.className = 'carousel-text-panel';
-            if (s.title !== null && s.title !== undefined && s.title !== '') {
-                var t = document.createElement('div');
-                t.className   = 'carousel-title';
-                t.textContent = s.title;
-                applyStyle(t, 'item_title', {fontFamily:'Arial,sans-serif', fontSize:26, color:'#f0f0f0', fontWeight:'bold', lineHeight:1.2});
-                panel.appendChild(t);
+            if (!s.imageOnly) {
+                // Text panel (60%) — transparent background, brand-styled text
+                var panel = document.createElement('div');
+                panel.className = 'carousel-text-panel';
+                if (s.title !== null && s.title !== undefined && s.title !== '') {
+                    var t = document.createElement('div');
+                    t.className   = 'carousel-title';
+                    t.textContent = s.title;
+                    applyStyle(t, 'item_title', {fontFamily:'Arial,sans-serif', fontSize:26, color:'#f0f0f0', fontWeight:'bold', lineHeight:1.2});
+                    panel.appendChild(t);
+                }
+                if (s.price !== null && s.price !== undefined && s.price !== '') {
+                    var p = document.createElement('div');
+                    p.className   = 'carousel-price';
+                    p.textContent = s.price;
+                    applyStyle(p, 'price', {fontFamily:'Arial,sans-serif', fontSize:28, color:'#f39c12', fontWeight:'bold', lineHeight:1.2});
+                    panel.appendChild(p);
+                }
+                if (s.description !== null && s.description !== undefined && s.description !== '') {
+                    var d = document.createElement('div');
+                    d.className   = 'carousel-desc';
+                    d.textContent = s.description;
+                    applyStyle(d, 'description', {fontFamily:'Arial,sans-serif', fontSize:16, color:'#ccc', fontWeight:'normal', lineHeight:1.4});
+                    panel.appendChild(d);
+                }
+                slide.appendChild(panel);
             }
-            if (s.price !== null && s.price !== undefined && s.price !== '') {
-                var p = document.createElement('div');
-                p.className   = 'carousel-price';
-                p.textContent = s.price;
-                applyStyle(p, 'price', {fontFamily:'Arial,sans-serif', fontSize:28, color:'#f39c12', fontWeight:'bold', lineHeight:1.2});
-                panel.appendChild(p);
-            }
-            if (s.description !== null && s.description !== undefined && s.description !== '') {
-                var d = document.createElement('div');
-                d.className   = 'carousel-desc';
-                d.textContent = s.description;
-                applyStyle(d, 'description', {fontFamily:'Arial,sans-serif', fontSize:16, color:'#ccc', fontWeight:'normal', lineHeight:1.4});
-                panel.appendChild(d);
-            }
-            slide.appendChild(panel);
 
             wrap.appendChild(slide);
             slideEls.push(slide);
